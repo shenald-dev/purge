@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from purge.core.rules import (
@@ -11,9 +12,14 @@ def test_is_protected_path(tmp_path):
     git_dir = tmp_path / ".git"
     assert is_protected_path(git_dir) is True
 
-    # Critical system paths are protected
-    assert is_protected_path(Path("C:\\Windows")) is True
+    # Root filesystem is protected
     assert is_protected_path(Path("/")) is True
+
+    # Platform specific critical system paths
+    if os.name == "nt":
+        assert is_protected_path(Path("C:\\Windows")) is True
+    else:
+        assert is_protected_path(Path("/etc")) is True
 
     # Standard dev project is not protected
     safe_project = tmp_path / "my_project"
