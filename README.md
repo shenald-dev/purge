@@ -13,7 +13,7 @@
 
 *Reclaim 50GB of dev debris and slay zombie dev servers in 3 seconds.*
 
-[![PyPI Version](https://img.shields.io/pypi/v/purge-reaper.svg?color=brightgreen&style=flat-square)](https://pypi.org/project/purge-reaper/)
+[![GitHub Release](https://img.shields.io/github/v/release/shenald-dev/purge?color=00d4ff&style=flat-square&logo=github)](https://github.com/shenald-dev/purge/releases)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg?style=flat-square)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg?style=flat-square)](LICENSE)
 [![CI Passing](https://img.shields.io/badge/CI-Passing-brightgreen.svg?style=flat-square)](https://github.com/shenald-dev/purge/actions)
@@ -105,18 +105,24 @@ When you run `purge scan` across your workspace:
 
 ### Installation
 
-Install via pip:
+Install directly via pip from GitHub:
 
 ```bash
-pip install purge-reaper
+pip install "git+https://github.com/shenald-dev/purge.git"
 ```
 
-Or install with `uv` / `pipx`:
+Or install the pre-built wheel directly from the [latest GitHub Release](https://github.com/shenald-dev/purge/releases/latest):
 
 ```bash
-uv tool install purge-reaper
+pip install https://github.com/shenald-dev/purge/releases/download/v0.1.0/purge_reaper-0.1.0-py3-none-any.whl
+```
+
+Or run via `pipx` / `uv`:
+
+```bash
+pipx install "git+https://github.com/shenald-dev/purge.git"
 # or
-pipx install purge-reaper
+uv tool install "git+https://github.com/shenald-dev/purge.git"
 ```
 
 ---
