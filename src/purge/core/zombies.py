@@ -30,7 +30,6 @@ DEV_PORTS: Set[int] = {
 }
 
 DEV_PROCESS_KEYWORDS: Set[str] = {
-    "node",
     "next-server",
     "vite",
     "webpack",

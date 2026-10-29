@@ -78,7 +78,7 @@ CRITICAL_SYSTEM_PATHS: Set[str] = {
 }
 
 
-def is_protected_path(path: Path) -> bool:
+def is_protected_path(path: Path, allow_home: bool = False) -> bool:
     """Check if path is a protected root, user profile root, or system path."""
     try:
         resolved = path.resolve()
@@ -91,7 +91,7 @@ def is_protected_path(path: Path) -> bool:
         # Protect user home directory root itself (can scan inside it, but don't delete home!)
         home = str(Path.home().resolve()).rstrip("\\/")
         if str_path == home:
-            return True
+            return not allow_home
 
         # Protect critical directories
         for part in resolved.parts:
