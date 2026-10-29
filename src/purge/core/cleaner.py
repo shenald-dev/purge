@@ -48,7 +48,7 @@ class PurgeCleaner:
                     send2trash.send2trash(str(path))
                     return True, None
                 except ImportError:
-                    pass  # Fallback to standard permanent deletion if send2trash is not installed
+                    return False, "The 'send2trash' package is required for trash functionality. Install it via 'pip install send2trash'."
 
             if path.is_file() or path.is_symlink():
                 try:
