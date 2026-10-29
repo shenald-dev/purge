@@ -82,7 +82,7 @@ class DiskScanner:
         start_time = time.time()
         root = root_path.resolve()
 
-        if is_protected_path(root):
+        if is_protected_path(root, allow_home=True):
             raise ValueError(f"Target path '{root}' is a protected system directory.")
 
         discovered_candidates: List[Tuple[Path, str]] = []
