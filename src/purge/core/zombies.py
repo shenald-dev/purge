@@ -1,12 +1,13 @@
 """Cross-platform zombie developer process and port hog hunter."""
 
 import os
-from typing import List, Optional, Set
+from typing import Any, List, Optional, Set
 
+psutil: Any = None
 try:
-    import psutil
+    import psutil  # type: ignore
 except ImportError:
-    psutil = None
+    pass
 
 from purge.core.models import ZombieProcess
 
