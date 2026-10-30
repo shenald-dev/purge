@@ -3,13 +3,13 @@
 import os
 from typing import Any, List, Optional, Set
 
+from purge.core.models import ZombieProcess
+
 psutil: Any = None
 try:
     import psutil  # type: ignore
 except ImportError:
     pass
-
-from purge.core.models import ZombieProcess
 
 # Common local development server ports
 DEV_PORTS: Set[int] = {
