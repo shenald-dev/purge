@@ -3,10 +3,10 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 
-def format_bytes(num_bytes: int) -> str:
+def format_bytes(num_bytes: Union[int, float]) -> str:
     """Format bytes into human-readable string (KB, MB, GB, TB)."""
     if num_bytes < 0:
         return "0 B"

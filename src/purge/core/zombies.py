@@ -1,14 +1,15 @@
 """Cross-platform zombie developer process and port hog hunter."""
 
 import os
-from typing import List, Optional, Set
-
-try:
-    import psutil
-except ImportError:
-    psutil = None
+from typing import Any, List, Optional, Set
 
 from purge.core.models import ZombieProcess
+
+psutil: Any = None
+try:
+    import psutil  # type: ignore
+except ImportError:
+    pass
 
 # Common local development server ports
 DEV_PORTS: Set[int] = {
