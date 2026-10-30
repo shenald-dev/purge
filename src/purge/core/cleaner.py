@@ -29,12 +29,12 @@ class PurgeCleaner:
 
     def delete_artifact(self, artifact: Artifact) -> Tuple[bool, Optional[str]]:
         """Safely delete a single artifact."""
-        path = artifact.path.resolve()
+        path = artifact.path
 
         if is_protected_path(path):
             return False, f"Protected path '{path}' cannot be deleted."
 
-        if not path.exists():
+        if not path.exists() and not path.is_symlink():
             return False, f"Path '{path}' no longer exists."
 
         if self.dry_run:
