@@ -11,10 +11,17 @@ from purge.core.models import (
 
 
 def test_format_bytes():
+    # Integer tests
     assert format_bytes(500) == "500.00 B"
     assert format_bytes(1024) == "1.00 KB"
     assert format_bytes(1024 * 1024 * 5) == "5.00 MB"
     assert format_bytes(1024 * 1024 * 1024 * 2) == "2.00 GB"
+    assert format_bytes(-50) == "0 B"
+
+    # Float tests
+    assert format_bytes(500.5) == "500.50 B"
+    assert format_bytes(1024.0 * 2.5) == "2.50 KB"
+    assert format_bytes(-50.5) == "0 B"
 
 
 def test_artifact_model():

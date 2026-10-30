@@ -36,6 +36,12 @@ def test_find_zombies_with_mocked_psutil():
         assert z.memory_mb == 250.0
 
 
+def test_missing_psutil():
+    with patch("purge.core.zombies.psutil", None):
+        assert find_zombies(target_port=3000) == []
+        assert kill_zombie(1234, force=True) is False
+
+
 def test_kill_zombie_success():
     mock_proc = MagicMock()
 
