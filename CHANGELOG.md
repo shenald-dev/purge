@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
-**Fixed:** Prevent accidental deletion of target directories when cleaning broken or active symlinks.
+**[Fixed]:** Prevented accidental deletion of target directories when cleaning broken or active symlinks.
+**[Added]:** Added strict boundary testing for broken symlinks in the test suite.
 
 ## [0.1.0] - 2026-10-26
 
