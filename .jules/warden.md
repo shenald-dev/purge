@@ -14,4 +14,10 @@
 
 - **QA & Veto Actions:** Fixed a correctness bug in `src/purge/core/scanner.py` where symlinked artifacts (like `node_modules` in monorepos) were being ignored. Addressed the associated bottleneck where `get_path_stats` traversed into symlink targets rather than relying on `lstat()`. Created `test_scanner_discovers_symlinked_artifacts` in `tests/test_scanner.py` which passes correctly.
 - **Entropy Pruned:** Refactored symlink checks in scanner to properly evaluate category rules before dropping the pointer.
+
+## 2026-10-31 — Symlink Safety Audit
+
+- **QA & Veto Actions:** Audited recent commit fixing symlink traversal deletions. The fix correctly used `not path.exists() and not path.is_symlink()` to detect broken symlinks, but lacked a test. Verified the fix and actively added `test_cleaner_broken_symlink` to `tests/test_cleaner_symlink.py` to prevent regressions on broken symlink paths.
+- **Entropy Pruned:** None.
+
 - **Deferred / Blocked:** None.

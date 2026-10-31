@@ -103,7 +103,7 @@ def find_zombies(target_port: Optional[int] = None) -> List[ZombieProcess]:
     return zombies
 
 
-def _extract_zombie_info(proc: "psutil.Process", port: Optional[int] = None) -> Optional[ZombieProcess]:
+def _extract_zombie_info(proc: Any, port: Optional[int] = None) -> Optional[ZombieProcess]:
     """Extract clean ZombieProcess dataclass from psutil Process."""
     try:
         pid = proc.pid
