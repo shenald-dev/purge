@@ -1,3 +1,5 @@
+import pytest
+
 from purge.core.scanner import DiskScanner, get_path_stats
 
 
@@ -77,7 +79,10 @@ def test_scanner_discovers_symlinked_artifacts(tmp_path):
     project.mkdir()
 
     link = project / "node_modules"
-    os.symlink(target, link)
+    try:
+        os.symlink(target, link)
+    except OSError:
+        pytest.skip("Symlink creation not permitted without privileges")
 
     # Run scanner on the project
     scanner = DiskScanner()
