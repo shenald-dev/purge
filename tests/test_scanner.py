@@ -62,3 +62,30 @@ def test_scanner_category_filter(tmp_path):
 
     assert len(report.artifacts) == 1
     assert report.artifacts[0].category == "Python"
+
+
+def test_scanner_discovers_symlinked_artifacts(tmp_path):
+    import os
+
+    # Setup the actual modules target
+    target = tmp_path / "actual_modules"
+    target.mkdir()
+    (target / "big_file.js").write_text("x" * 1024 * 1024)
+
+    # Setup the project with a symlink
+    project = tmp_path / "web_project"
+    project.mkdir()
+
+    link = project / "node_modules"
+    os.symlink(target, link)
+
+    # Run scanner on the project
+    scanner = DiskScanner()
+    report = scanner.scan(project)
+
+    assert len(report.artifacts) == 1
+    assert report.artifacts[0].category == "Node.js & Web"
+
+    # The size should be the size of the symlink, not the 1MB target
+    assert report.artifacts[0].size_bytes < 1000
+    assert report.artifacts[0].file_count == 1

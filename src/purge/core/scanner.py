@@ -23,7 +23,15 @@ def get_path_stats(path: Path) -> Tuple[int, int, Optional[datetime], float]:
 
     now_ts = time.time()
 
-    if path.is_file():
+    if path.is_symlink():
+        try:
+            stat = path.lstat()
+            latest_mtime = stat.st_mtime
+            total_bytes = stat.st_size
+            file_count = 1
+        except (OSError, PermissionError):
+            pass
+    elif path.is_file():
         try:
             stat = path.stat()
             latest_mtime = stat.st_mtime
@@ -105,9 +113,6 @@ class DiskScanner:
                 with os.scandir(str(current_dir)) as it:
                     for entry in it:
                         try:
-                            if entry.is_symlink():
-                                continue
-
                             entry_name = entry.name
                             if entry_name in PROTECTED_DIR_NAMES:
                                 continue
@@ -122,6 +127,9 @@ class DiskScanner:
                                 ):
                                     discovered_candidates.append((entry_path, category))
                                 # CRITICAL: Do NOT recurse into artifact folders like node_modules!
+                                continue
+
+                            if entry.is_symlink():
                                 continue
 
                             if entry.is_dir(follow_symlinks=False):
