@@ -41,7 +41,7 @@ DEV_PROCESS_KEYWORDS: Set[str] = {
     "flask",
     "streamlit",
     "cargo-watch",
-    "python",
+    "manage.py",
 }
 
 
@@ -70,8 +70,28 @@ def find_zombies(target_port: Optional[int] = None) -> List[ZombieProcess]:
                                 seen_pids.add(conn.pid)
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             continue
-    except (psutil.AccessDenied, OSError):
-        pass
+    except Exception as e:
+        # Fallback for systems (e.g. macOS without root) that raise AccessDenied on net_connections
+        # We catch Exception here because when mocked in tests, psutil.AccessDenied might not be a class.
+        # But specifically checking for the name allows both real and mock psutil to work.
+        if type(e).__name__ not in ("AccessDenied", "OSError", "PermissionError"):
+            raise e
+        for proc in psutil.process_iter(["pid", "name"]):
+            try:
+                if proc.pid == current_pid or proc.pid in seen_pids:
+                    continue
+                proc_connections = proc.connections(kind="inet")
+                for conn in proc_connections:
+                    if conn.status == psutil.CONN_LISTEN and conn.laddr:
+                        port = conn.laddr.port
+                        if (target_port and port == target_port) or (not target_port and port in DEV_PORTS):
+                            zombie = _extract_zombie_info(proc, port=port)
+                            if zombie:
+                                zombies.append(zombie)
+                                seen_pids.add(proc.pid)
+                            break
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
 
     # 2. Check running processes matching dev keywords if no specific port requested
     if not target_port:
@@ -87,6 +107,8 @@ def find_zombies(target_port: Optional[int] = None) -> List[ZombieProcess]:
 
                 # Match if name or cmdline matches dev tools
                 is_dev = any(k in name for k in DEV_PROCESS_KEYWORDS) or any(
+                    k in cmdline for k in DEV_PROCESS_KEYWORDS
+                ) or any(
                     f"run {k}" in cmdline or f"bin/{k}" in cmdline for k in ["dev", "start", "serve"]
                 )
 
