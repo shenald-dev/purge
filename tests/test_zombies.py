@@ -53,8 +53,9 @@ def test_kill_zombie_success():
 
 
 def test_extract_zombie_info_access_denied():
-    from purge.core.zombies import _extract_zombie_info
     import psutil
+
+    from purge.core.zombies import _extract_zombie_info
 
     mock_proc = MagicMock()
     mock_proc.pid = 8888

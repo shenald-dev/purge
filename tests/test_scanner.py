@@ -67,7 +67,6 @@ def test_scanner_category_filter(tmp_path):
 
 
 def test_get_path_stats_permission_error(tmp_path):
-    import os
     from unittest.mock import patch
 
     sub = tmp_path / "subfolder"
