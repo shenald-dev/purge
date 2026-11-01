@@ -21,3 +21,9 @@
 - **Entropy Pruned:** None.
 
 - **Deferred / Blocked:** None.
+
+## 2026-11-01 — Edge-Case Audit & Safety Assurance
+
+- **QA & Veto Actions:** Actively discovered missing edge case unit tests in `src/purge/core/zombies.py` and `src/purge/core/scanner.py`. Explicitly verified exception fallback implementations for `psutil.AccessDenied` and `PermissionError` and enforced them with tests. Additionally created a missing test for missing artifacts triggering the cleaner module in `tests/test_cleaner.py`. Ensured accurate synchronization between source code port configurations and external `README.md` docs.
+- **Entropy Pruned:** None. No dead code found during routine scan.
+- **Deferred / Blocked:** None.

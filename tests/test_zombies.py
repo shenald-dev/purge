@@ -50,3 +50,28 @@ def test_kill_zombie_success():
         res = kill_zombie(1234, force=True)
         assert res is True
         mock_proc.kill.assert_called_once()
+
+
+def test_extract_zombie_info_access_denied():
+    from purge.core.zombies import _extract_zombie_info
+    import psutil
+
+    mock_proc = MagicMock()
+    mock_proc.pid = 8888
+    mock_proc.name.return_value = "python"
+    mock_proc.cmdline.return_value = ["python", "app.py"]
+
+    mock_proc.cwd.side_effect = psutil.AccessDenied()
+    mock_proc.memory_info.side_effect = psutil.AccessDenied()
+    mock_proc.cpu_percent.side_effect = psutil.AccessDenied()
+    mock_proc.create_time.return_value = 5000.0
+
+    zombie = _extract_zombie_info(mock_proc, port=8000)
+
+    assert zombie is not None
+    assert zombie.pid == 8888
+    assert zombie.name == "python"
+    assert zombie.port == 8000
+    assert zombie.cwd is None
+    assert zombie.memory_mb == 0.0
+    assert zombie.cpu_percent == 0.0

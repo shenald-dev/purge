@@ -46,3 +46,16 @@ def test_cleaner_protects_git_and_system(tmp_path):
     assert git_dir.exists()
     assert len(res.errors) == 1
     assert "Protected path" in res.errors[0]
+
+
+def test_cleaner_nonexistent_path(tmp_path):
+    missing_path = tmp_path / "does_not_exist"
+    art = Artifact(path=missing_path, category="Unknown", size_bytes=500)
+
+    cleaner = PurgeCleaner(dry_run=False)
+    res = cleaner.purge([art])
+
+    assert res.deleted_artifacts_count == 0
+    assert res.reclaimed_bytes == 0
+    assert len(res.errors) == 1
+    assert "no longer exists" in res.errors[0]

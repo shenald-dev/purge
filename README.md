@@ -196,7 +196,7 @@ purge clean --force --kill-zombies
 | **Java & Gradle** | `.gradle`, `pom.xml` target dirs |
 | **Build Artifacts** | `dist`, `build`, `out`, `coverage`, `.nyc_output` |
 | **OS Clutter** | `.DS_Store`, `Thumbs.db` |
-| **Dev Servers** | Zombie processes on `:3000`, `:3001`, `:5173`, `:8000`, `:8080`, `:9000` |
+| **Dev Servers** | Zombie processes on `:3000`, `:3001`, `:3002`, `:3003`, `:4200`, `:5000`, `:5173`, `:5174`, `:5175`, `:8000`, `:8080`, `:8081`, `:8888`, `:9000`, `:9229` |
 
 ---
 
