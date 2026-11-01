@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 **[Fixed]:** Prevented accidental deletion of target directories when cleaning broken or active symlinks.
 **[Added]:** Added strict boundary testing for broken symlinks in the test suite.
+**[Added]:** Added boundary tests for `psutil.AccessDenied` and `PermissionError` in zombie extraction and path stat processes.
+**[Added]:** Added safety test for cleaner execution against non-existent paths.
+**[Optimized]:** Synchronized README.md with the latest complete list of targeted zombie ports.
 
 ## [0.1.0] - 2026-10-26
 

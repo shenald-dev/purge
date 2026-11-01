@@ -66,6 +66,25 @@ def test_scanner_category_filter(tmp_path):
     assert report.artifacts[0].category == "Python"
 
 
+def test_get_path_stats_permission_error(tmp_path):
+    from unittest.mock import patch
+
+    sub = tmp_path / "subfolder"
+    sub.mkdir()
+    f1 = sub / "file1.txt"
+    f1.write_text("Hello")
+
+    # Force a permission error on os.scandir inside the directory traversal
+    with patch("os.scandir", side_effect=PermissionError):
+        total_bytes, file_count, last_mod, days_stale = get_path_stats(sub)
+
+    # Since we can't scan, it should fall back gracefully
+    assert total_bytes == 0
+    assert file_count == 0
+    assert last_mod is None
+    assert days_stale == 0.0
+
+
 def test_scanner_discovers_symlinked_artifacts(tmp_path):
     import os
 
