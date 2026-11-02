@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 from purge.core.rules import identify_artifact_category, is_protected_path
@@ -34,7 +35,8 @@ def test_modern_framework_categories(tmp_path: Path):
 
 
 def test_protected_roots():
-    assert is_protected_path(Path("C:\\")) is True
+    if sys.platform == "win32":
+        assert is_protected_path(Path("C:\\")) is True
     assert is_protected_path(Path("/")) is True
     # Git directory should be protected
     assert is_protected_path(Path("/Users/test/project/.git")) is True
