@@ -103,6 +103,8 @@ def is_protected_path(path: Path, allow_home: bool = False) -> bool:
             resolved.parent == resolved
             or len(resolved.parts) <= 1
             or str_path in CRITICAL_SYSTEM_PATHS
+            or str(path) in CRITICAL_SYSTEM_PATHS
+            or str(path).rstrip("\\/") in CRITICAL_SYSTEM_PATHS
             or str_path == ""
         ):
             return True
