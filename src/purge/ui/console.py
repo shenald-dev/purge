@@ -1,7 +1,7 @@
 """Cyberpunk Rich terminal user interface for purge."""
 
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -185,7 +185,7 @@ def render_zombies_table(zombies: List[ZombieProcess]):
     console.print()
 
 
-def render_port_status(port: int, process: ZombieProcess | None):
+def render_port_status(port: int, process: Optional[ZombieProcess]):
     """Render status card for a specific port query."""
     if process:
         body = Text()
