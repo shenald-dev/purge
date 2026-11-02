@@ -40,3 +40,7 @@ ENV/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Caches & Bot Ledgers
+.ruff_cache/
+.jules/

@@ -1,4 +1,4 @@
-"""Cross-platform zombie developer process and port hog hunter."""
+"""Cross-platform zombie developer process, port hog hunter, and process tree slayer."""
 
 import os
 from typing import Any, List, Optional, Set
@@ -42,7 +42,57 @@ DEV_PROCESS_KEYWORDS: Set[str] = {
     "streamlit",
     "cargo-watch",
     "python",
+    "node",
 }
+
+
+def _extract_zombie_info(proc: Any, port: Optional[int] = None) -> Optional[ZombieProcess]:
+    """Extract clean ZombieProcess dataclass from psutil Process."""
+    try:
+        pid = proc.pid
+        name = proc.name()
+        cmdline = " ".join(proc.cmdline() or [name])
+        cwd = None
+        try:
+            cwd = proc.cwd()
+        except (psutil.AccessDenied, OSError):
+            pass
+
+        mem_mb = 0.0
+        try:
+            mem_info = proc.memory_info()
+            mem_mb = mem_info.rss / (1024.0 * 1024.0)
+        except (psutil.AccessDenied, OSError):
+            pass
+
+        cpu = 0.0
+        try:
+            cpu = proc.cpu_percent(interval=0.0)
+        except (psutil.AccessDenied, OSError):
+            pass
+
+        children_count = 0
+        try:
+            children_count = len(proc.children(recursive=True))
+        except (psutil.AccessDenied, OSError):
+            pass
+
+        url = f"http://localhost:{port}" if port else None
+
+        return ZombieProcess(
+            pid=pid,
+            name=name,
+            cmdline=cmdline[:140],
+            port=port,
+            memory_mb=mem_mb,
+            cpu_percent=cpu,
+            cwd=cwd,
+            create_time=proc.create_time(),
+            children_count=children_count,
+            url=url,
+        )
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return None
 
 
 def find_zombies(target_port: Optional[int] = None) -> List[ZombieProcess]:
@@ -85,7 +135,6 @@ def find_zombies(target_port: Optional[int] = None) -> List[ZombieProcess]:
                 cmdline_list = proc.info.get("cmdline") or []
                 cmdline = " ".join(cmdline_list).lower()
 
-                # Match if name or cmdline matches dev tools
                 is_dev = any(k in name for k in DEV_PROCESS_KEYWORDS) or any(
                     f"run {k}" in cmdline or f"bin/{k}" in cmdline for k in ["dev", "start", "serve"]
                 )
@@ -98,65 +147,63 @@ def find_zombies(target_port: Optional[int] = None) -> List[ZombieProcess]:
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
-    # Sort zombies by memory usage descending
     zombies.sort(key=lambda z: z.memory_mb, reverse=True)
     return zombies
 
 
-def _extract_zombie_info(proc: Any, port: Optional[int] = None) -> Optional[ZombieProcess]:
-    """Extract clean ZombieProcess dataclass from psutil Process."""
+def get_process_on_port(port: int) -> Optional[ZombieProcess]:
+    """Find the specific process listening on a given port."""
+    zombies = find_zombies(target_port=port)
+    return zombies[0] if zombies else None
+
+
+def kill_zombie_tree(pid: int, force: bool = True) -> int:
+    """Recursively terminate a process and all its spawned children to avoid orphaned zombies.
+
+    Returns the total count of processes terminated.
+    """
+    if psutil is None:
+        return 0
+
     try:
-        pid = proc.pid
-        name = proc.name()
-        cmdline = " ".join(proc.cmdline() or [name])
-        cwd = None
+        parent = psutil.Process(pid)
+        children = []
         try:
-            cwd = proc.cwd()
-        except (psutil.AccessDenied, OSError):
+            children = parent.children(recursive=True)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
 
-        mem_mb = 0.0
+        count = 0
+        # Terminate all child processes first
+        for child in children:
+            try:
+                if force:
+                    child.kill()
+                else:
+                    child.terminate()
+                count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+        # Terminate parent process
         try:
-            mem_info = proc.memory_info()
-            mem_mb = mem_info.rss / (1024.0 * 1024.0)
-        except (psutil.AccessDenied, OSError):
+            if force:
+                parent.kill()
+            else:
+                parent.terminate()
+                try:
+                    parent.wait(timeout=2.0)
+                except psutil.TimeoutExpired:
+                    parent.kill()
+            count += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
 
-        cpu = 0.0
-        try:
-            cpu = proc.cpu_percent(interval=0.0)
-        except (psutil.AccessDenied, OSError):
-            pass
-
-        return ZombieProcess(
-            pid=pid,
-            name=name,
-            cmdline=cmdline[:120],
-            port=port,
-            memory_mb=mem_mb,
-            cpu_percent=cpu,
-            cwd=cwd,
-            create_time=proc.create_time(),
-        )
+        return count
     except (psutil.NoSuchProcess, psutil.AccessDenied):
-        return None
+        return 0
 
 
 def kill_zombie(pid: int, force: bool = False) -> bool:
-    """Terminate or kill a zombie process safely."""
-    if psutil is None:
-        return False
-
-    try:
-        proc = psutil.Process(pid)
-        if force:
-            proc.kill()
-        else:
-            proc.terminate()
-            try:
-                proc.wait(timeout=2.0)
-            except psutil.TimeoutExpired:
-                proc.kill()
-        return True
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
-        return False
+    """Terminate or kill a zombie process safely (backward-compatible wrapper)."""
+    return kill_zombie_tree(pid, force=force) > 0

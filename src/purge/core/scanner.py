@@ -1,15 +1,17 @@
-"""High-performance parallel disk scanner for developer artifacts."""
+"""High-performance parallel disk scanner for developer bloat and global caches."""
 
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
+from purge.core.git_helper import inspect_git_project
 from purge.core.models import Artifact, PurgeReport
 from purge.core.rules import (
     PROTECTED_DIR_NAMES,
+    get_global_cache_targets,
     identify_artifact_category,
     is_protected_path,
 )
@@ -71,21 +73,76 @@ def get_path_stats(path: Path) -> Tuple[int, int, Optional[datetime], float]:
 
 
 class DiskScanner:
-    """Recursively scans projects for reclaimable developer bloat."""
+    """Recursively scans projects for reclaimable developer bloat and global caches."""
 
     def __init__(
         self,
         max_workers: int = 8,
         categories: Optional[List[str]] = None,
         min_stale_days: float = 0.0,
+        min_size_bytes: int = 0,
+        git_aware: bool = True,
+        custom_rules: Optional[Dict[str, List[str]]] = None,
+        ignore_paths: Optional[List[str]] = None,
         progress_callback: Optional[Callable[[str], None]] = None,
     ):
         self.max_workers = max_workers
         self.categories = categories
         self.min_stale_days = min_stale_days
+        self.min_size_bytes = min_size_bytes
+        self.git_aware = git_aware
+        self.custom_rules = custom_rules
+        self.ignore_paths = [p.replace("\\", "/").rstrip("/") for p in (ignore_paths or [])]
         self.progress_callback = progress_callback
 
-    def scan(self, root_path: Path, max_depth: int = 10) -> PurgeReport:
+    def _is_ignored(self, p: Path) -> bool:
+        str_p = str(p).replace("\\", "/").rstrip("/")
+        for ign in self.ignore_paths:
+            if ign in str_p:
+                return True
+        return False
+
+    def scan_global_caches(self) -> List[Artifact]:
+        """Scan system for global developer package manager caches (npm, pip, uv, cargo, etc.)."""
+        global_targets = get_global_cache_targets()
+        global_artifacts = []
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_cand = {
+                executor.submit(get_path_stats, path): (path, cat, desc)
+                for path, cat, desc in global_targets
+                if not self._is_ignored(path)
+            }
+
+            for future in as_completed(future_to_cand):
+                path, cat, desc = future_to_cand[future]
+                try:
+                    bytes_size, f_count, last_mod, days_stale = future.result()
+                    if bytes_size > 0:
+                        global_artifacts.append(
+                            Artifact(
+                                path=path,
+                                category=cat,
+                                size_bytes=bytes_size,
+                                file_count=f_count,
+                                last_modified=last_mod,
+                                days_stale=days_stale,
+                                is_global_cache=True,
+                                description=desc,
+                            )
+                        )
+                except Exception:
+                    continue
+
+        global_artifacts.sort(key=lambda x: x.size_bytes, reverse=True)
+        return global_artifacts
+
+    def scan(
+        self,
+        root_path: Path,
+        max_depth: int = 10,
+        include_global_caches: bool = False,
+    ) -> PurgeReport:
         """Scan root_path recursively and return PurgeReport."""
         start_time = time.time()
         root = root_path.resolve()
@@ -118,9 +175,13 @@ class DiskScanner:
                                 continue
 
                             entry_path = Path(entry.path)
+                            if self._is_ignored(entry_path):
+                                continue
 
                             # Check if this matches a bloat artifact
-                            category = identify_artifact_category(entry_name, current_dir)
+                            category = identify_artifact_category(
+                                entry_name, current_dir, custom_rules=self.custom_rules
+                            )
                             if category:
                                 if not self.categories or any(
                                     c.lower() in category.lower() for c in self.categories
@@ -143,6 +204,8 @@ class DiskScanner:
         artifacts: List[Artifact] = []
         total_bytes = 0
         total_files = 0
+        uncommitted_repos = 0
+        seen_repo_roots = set()
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             future_to_cand = {
@@ -159,6 +222,28 @@ class DiskScanner:
                     if self.min_stale_days > 0 and days_stale < self.min_stale_days:
                         continue
 
+                    # Filter by minimum size bytes
+                    if self.min_size_bytes > 0 and bytes_size < self.min_size_bytes:
+                        continue
+
+                    is_git = False
+                    has_uncommitted = False
+                    last_commit_time = None
+                    days_since_commit = 0.0
+
+                    if self.git_aware:
+                        git_info = inspect_git_project(cand_path.parent)
+                        if git_info.is_git:
+                            is_git = True
+                            has_uncommitted = git_info.has_uncommitted
+                            last_commit_time = git_info.last_commit_time
+                            days_since_commit = git_info.days_since_last_commit
+                            if has_uncommitted and git_info.repo_root:
+                                r_str = str(git_info.repo_root)
+                                if r_str not in seen_repo_roots:
+                                    seen_repo_roots.add(r_str)
+                                    uncommitted_repos += 1
+
                     art = Artifact(
                         path=cand_path,
                         category=category,
@@ -166,6 +251,10 @@ class DiskScanner:
                         file_count=f_count,
                         last_modified=last_mod,
                         days_stale=days_stale,
+                        is_git_repo=is_git,
+                        has_uncommitted=has_uncommitted,
+                        last_commit_time=last_commit_time,
+                        days_since_commit=days_since_commit,
                     )
                     artifacts.append(art)
                     total_bytes += bytes_size
@@ -176,12 +265,20 @@ class DiskScanner:
         # Sort artifacts descending by size (largest targets first)
         artifacts.sort(key=lambda x: x.size_bytes, reverse=True)
 
+        global_caches = []
+        if include_global_caches:
+            global_caches = self.scan_global_caches()
+            total_bytes += sum(gc.size_bytes for gc in global_caches)
+            total_files += sum(gc.file_count for gc in global_caches)
+
         duration = time.time() - start_time
         return PurgeReport(
             scan_path=root,
             artifacts=artifacts,
+            global_caches=global_caches,
             total_bytes=total_bytes,
             total_files=total_files,
             scanned_dirs_count=scanned_dirs_count,
             duration_seconds=duration,
+            uncommitted_repos_count=uncommitted_repos,
         )

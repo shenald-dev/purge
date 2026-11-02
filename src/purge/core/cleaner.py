@@ -6,9 +6,10 @@ import stat
 import time
 from typing import List, Optional, Tuple
 
+from purge.core.history import record_clean_event
 from purge.core.models import Artifact, CleanResult, ZombieProcess
 from purge.core.rules import is_protected_path
-from purge.core.zombies import kill_zombie
+from purge.core.zombies import kill_zombie_tree
 
 
 def _remove_readonly(func, path, _exc_info):
@@ -23,9 +24,10 @@ def _remove_readonly(func, path, _exc_info):
 class PurgeCleaner:
     """Manages the safe removal of disk artifacts and termination of zombie processes."""
 
-    def __init__(self, dry_run: bool = False, to_trash: bool = False):
+    def __init__(self, dry_run: bool = False, to_trash: bool = False, record_history: bool = True):
         self.dry_run = dry_run
         self.to_trash = to_trash
+        self.record_history = record_history
 
     def delete_artifact(self, artifact: Artifact) -> Tuple[bool, Optional[str]]:
         """Safely delete a single artifact."""
@@ -84,22 +86,28 @@ class PurgeCleaner:
             elif err:
                 errors.append(err)
 
-        # 2. Slay Zombie Processes
+        # 2. Slay Zombie Processes (including process trees)
         if zombies:
             for z in zombies:
                 if self.dry_run:
                     slain_zombies += 1
                 else:
-                    if kill_zombie(z.pid, force=True):
+                    killed_count = kill_zombie_tree(z.pid, force=True)
+                    if killed_count > 0:
                         slain_zombies += 1
                     else:
                         errors.append(f"Failed to terminate zombie PID {z.pid} ({z.name})")
 
         duration = time.time() - start_time
-        return CleanResult(
+        result = CleanResult(
             reclaimed_bytes=reclaimed_bytes,
             deleted_artifacts_count=deleted_count,
             slain_zombies_count=slain_zombies,
             duration_seconds=duration,
             errors=errors,
         )
+
+        if not self.dry_run and self.record_history:
+            record_clean_event(result)
+
+        return result
