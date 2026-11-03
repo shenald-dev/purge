@@ -32,6 +32,6 @@ def test_inspect_real_git_project(tmp_path: Path):
 
     # Uncommitted changes check
     f.write_text("print('modified')")
-    info_dirty = inspect_git_project(tmp_path, force_refresh=True)
+    info_dirty = inspect_git_project(tmp_path)
     assert info_dirty.is_git is True
     assert info_dirty.has_uncommitted is True
