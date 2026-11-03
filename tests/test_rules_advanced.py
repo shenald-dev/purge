@@ -42,7 +42,7 @@ def test_protected_roots():
     assert is_protected_path(Path("/Users/test/project/.git")) is True
 
 def test_is_protected_path_raw_string():
-    from pathlib import PureWindowsPath, PurePosixPath
+    from pathlib import PurePosixPath, PureWindowsPath
     assert is_protected_path(PureWindowsPath('C:\\\\')) is True
     assert is_protected_path(PureWindowsPath('C:\\\\Windows')) is True
     assert is_protected_path(PurePosixPath('/etc')) is True
