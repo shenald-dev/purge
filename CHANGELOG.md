@@ -1,5 +1,5 @@
 ## [Unreleased]
-**[Fixed]:** Fixed a bug where unresolved paths on Windows (like `Path("C:\\")`) could bypass root protection rules in `is_protected_path()`.
+**[Fixed]:** Fixed regression in Windows path handling for protected roots. Updated typing to be compatible with older Python versions.
 
 # Changelog
 

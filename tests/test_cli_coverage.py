@@ -99,3 +99,9 @@ def test_cli_zombies_json_and_kill(monkeypatch):
     res_kill = runner.invoke(app, ["zombies", "--kill", "--force"])
     assert res_kill.exit_code == 0
     assert "Successfully terminated" in res_kill.stdout
+
+def test_render_port_status_none(monkeypatch, capsys):
+    from purge.ui.console import render_port_status
+    render_port_status(9999, None)
+    out, _ = capsys.readouterr()
+    # It should not crash when passing None for Optional[ZombieProcess]
