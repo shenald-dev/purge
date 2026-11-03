@@ -8,7 +8,9 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from purge.core.disk import PartitionInfo
 from purge.core.models import Artifact, CleanResult, PurgeReport, ZombieProcess, format_bytes
+from purge.core.vault import VaultSession
 
 # Windows UTF-8 encoding safeguard
 if sys.platform == "win32":
@@ -37,7 +39,7 @@ def print_banner():
         Panel(
             BANNER_ART.strip(),
             border_style="bright_magenta",
-            subtitle="[dim cyan]v1.0.0 • https://github.com/shenald-dev/purge[/]",
+            subtitle="[dim cyan]v2.0.0 • https://github.com/shenald-dev/purge[/]",
         )
     )
     console.print()
@@ -68,7 +70,8 @@ def render_artifacts_table(report: PurgeReport, max_items: int = 50):
     table.add_column("Path", style="white")
     table.add_column("Files", justify="right", style="dim", width=8)
     table.add_column("Status / Git", justify="center", width=14)
-    table.add_column("Stale", justify="right", style="dim cyan", width=10)
+    table.add_column("Stale", justify="right", style="dim cyan", width=8)
+    table.add_column("Score", justify="right", width=9)
     table.add_column("Size", justify="right", style="bold green", width=12)
 
     for idx, a in enumerate(report.artifacts[:max_items], start=1):
@@ -87,6 +90,14 @@ def render_artifacts_table(report: PurgeReport, max_items: int = 50):
         elif a.is_git_repo and a.days_since_commit > 0:
             status_str = f"[dim cyan]git: {int(a.days_since_commit)}d ago[/]"
 
+        score = getattr(a, "purge_score", 0.0)
+        if score >= 65:
+            score_str = f"[bold green]{int(score)}/100[/]"
+        elif score >= 35:
+            score_str = f"[yellow]{int(score)}/100[/]"
+        else:
+            score_str = f"[dim]{int(score)}/100[/]"
+
         table.add_row(
             str(idx),
             a.category,
@@ -94,6 +105,7 @@ def render_artifacts_table(report: PurgeReport, max_items: int = 50):
             str(a.file_count),
             status_str,
             stale_str,
+            score_str,
             size_str,
         )
 
@@ -102,6 +114,7 @@ def render_artifacts_table(report: PurgeReport, max_items: int = 50):
             "...",
             "...",
             f"[dim italic]... and {len(report.artifacts) - max_items} more items[/]",
+            "...",
             "...",
             "...",
             "...",
@@ -230,6 +243,12 @@ def render_scan_summary(report: PurgeReport):
         style="bold bright_red" if report.zombies else "dim green",
     )
 
+    if report.high_priority_count > 0:
+        panel_text.append(
+            f"• 🎯 High Priority Targets (Score ≥ 65): {report.high_priority_count}\n",
+            style="bold cyan",
+        )
+
     if report.uncommitted_repos_count > 0:
         panel_text.append(
             f"• ⚠️ Repos with Uncommitted Changes: {report.uncommitted_repos_count}\n",
@@ -270,7 +289,15 @@ def render_clean_result(result: CleanResult, dry_run: bool = False):
     body = Text()
     body.append("Space Reclaimed: ", style="bold")
     body.append(f"{result.human_reclaimed_size}\n", style="bold bright_green")
-    body.append(f"• Deleted Artifacts: {result.deleted_artifacts_count}\n", style="white")
+
+    if result.quarantined_count > 0:
+        body.append(f"• Quarantined to Vault: {result.quarantined_count} target(s)\n", style="bold cyan")
+        if result.vault_session_id:
+            body.append(f"• Vault ID: [bold yellow]{result.vault_session_id}[/]\n", style="white")
+            body.append(f"  (Undo with: 'purge vault restore {result.vault_session_id}')\n", style="dim")
+    else:
+        body.append(f"• Deleted Artifacts: {result.deleted_artifacts_count}\n", style="white")
+
     body.append(
         f"• Slayed Zombie Processes: {result.slain_zombies_count}\n",
         style="bold red" if result.slain_zombies_count else "dim",
@@ -318,4 +345,107 @@ def render_lifetime_stats(stats: Dict[str, Any]):
             padding=(1, 2),
         )
     )
+    console.print()
+
+
+def render_disk_status(partition: PartitionInfo):
+    """Render visual disk partition telemetry and bloat percentage."""
+    used_pct = partition.percent_used
+    free_pct = max(0.0, 100.0 - used_pct)
+
+    # Build ASCII progress bar (30 chars wide)
+    total_blocks = 30
+    used_blocks = int(round((used_pct / 100.0) * total_blocks))
+    free_blocks = total_blocks - used_blocks
+    bar = "█" * used_blocks + "░" * free_blocks
+
+    body = Text()
+    body.append(f"Mount: {partition.mountpoint}    Device: {partition.device} ({partition.fstype or 'disk'})\n\n", style="bold white")
+    body.append(f"[{bar}]  {used_pct:.1f}% Used\n\n", style="bold bright_cyan")
+    body.append(f"• Total Capacity: {partition.human_total}\n", style="white")
+    body.append(f"• Used Space:     {partition.human_used}\n", style="yellow")
+    body.append(f"• Free Space:     {partition.human_free} ({free_pct:.1f}%)\n", style="bold green")
+
+    if partition.bloat_bytes > 0:
+        body.append(f"\n• Developer Bloat: {partition.human_bloat}\n", style="bold red")
+        body.append(
+            f"• Bloat accounts for {partition.bloat_percent_of_total:.1f}% of total drive capacity "
+            f"({partition.bloat_percent_of_used:.1f}% of currently used space)\n",
+            style="dim yellow",
+        )
+        body.append(
+            f"• Purging this bloat will increase free space by +{partition.potential_free_gain_percent:.1f}%\n",
+            style="bold bright_green",
+        )
+
+    console.print(
+        Panel(
+            body,
+            title=f"[bold bright_cyan]💾 DISK CAPACITY & BLOAT RADAR ({partition.mountpoint})[/]",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+    )
+    console.print()
+
+
+def render_vault_sessions_table(sessions: List[VaultSession]):
+    """Render table of quarantine vault sessions."""
+    if not sessions:
+        console.print(
+            Panel(
+                "[bold green]✨ The quarantine vault is empty. No artifacts are staged.[/]",
+                title="[bold green]VAULT: EMPTY[/]",
+                border_style="green",
+            )
+        )
+        return
+
+    table = Table(
+        title=f"[bold bright_magenta]🛡️ Quarantine Vault Sessions ({len(sessions)})[/]",
+        border_style="bright_magenta",
+        header_style="bold cyan",
+        show_lines=False,
+    )
+    table.add_column("#", justify="right", style="dim", width=4)
+    table.add_column("Vault ID", style="bold yellow", width=24)
+    table.add_column("Created", style="dim", width=20)
+    table.add_column("Items", justify="right", style="white", width=8)
+    table.add_column("Quarantined Size", justify="right", style="bold green", width=14)
+
+    for idx, s in enumerate(sessions, start=1):
+        table.add_row(
+            str(idx),
+            s.vault_id,
+            s.created_at[:19].replace("T", " "),
+            str(s.total_items),
+            s.human_size,
+        )
+
+    console.print(table)
+    console.print("[dim]Use 'purge vault restore <VAULT_ID>' to restore items back to their original path.[/]\n")
+
+
+def render_vault_details(session: VaultSession):
+    """Render detailed items list inside a specific vault session."""
+    table = Table(
+        title=f"[bold bright_magenta]🛡️ Vault Session: {session.vault_id} ({session.human_size})[/]",
+        border_style="bright_magenta",
+        header_style="bold cyan",
+        show_lines=False,
+    )
+    table.add_column("#", justify="right", style="dim", width=4)
+    table.add_column("Type", style="cyan", width=8)
+    table.add_column("Original Path", style="white")
+    table.add_column("Size", justify="right", style="bold green", width=12)
+
+    for idx, item in enumerate(session.items, start=1):
+        table.add_row(
+            str(idx),
+            "Dir" if item.is_dir else "File",
+            item.original_path,
+            format_bytes(item.size_bytes),
+        )
+
+    console.print(table)
     console.print()

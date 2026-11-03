@@ -61,6 +61,9 @@ class Artifact:
     days_since_commit: float = 0.0
     is_global_cache: bool = False
     description: Optional[str] = None
+    purge_score: float = 0.0
+    safety_level: str = "SAFE"
+    score_recommendation: Optional[str] = None
 
     @property
     def human_size(self) -> str:
@@ -80,6 +83,9 @@ class Artifact:
             "days_since_commit": round(self.days_since_commit, 1) if self.is_git_repo else None,
             "is_global_cache": self.is_global_cache,
             "description": self.description,
+            "purge_score": round(self.purge_score, 1),
+            "safety_level": self.safety_level,
+            "score_recommendation": self.score_recommendation,
         }
 
 
@@ -125,6 +131,7 @@ class PurgeReport:
     scanned_dirs_count: int = 0
     duration_seconds: float = 0.0
     uncommitted_repos_count: int = 0
+    high_priority_count: int = 0
 
     @property
     def human_total_size(self) -> str:
@@ -148,6 +155,7 @@ class PurgeReport:
             "total_global_caches": len(self.global_caches),
             "total_zombies": len(self.zombies),
             "uncommitted_repos_count": self.uncommitted_repos_count,
+            "high_priority_count": self.high_priority_count,
             "scanned_dirs_count": self.scanned_dirs_count,
             "duration_seconds": round(self.duration_seconds, 3),
             "artifacts": [a.to_dict() for a in self.artifacts],
@@ -168,6 +176,8 @@ class CleanResult:
     deleted_artifacts_count: int = 0
     slain_zombies_count: int = 0
     duration_seconds: float = 0.0
+    quarantined_count: int = 0
+    vault_session_id: Optional[str] = None
     errors: List[str] = field(default_factory=list)
 
     @property
@@ -180,6 +190,8 @@ class CleanResult:
             "human_reclaimed_size": self.human_reclaimed_size,
             "deleted_artifacts_count": self.deleted_artifacts_count,
             "slain_zombies_count": self.slain_zombies_count,
+            "quarantined_count": self.quarantined_count,
+            "vault_session_id": self.vault_session_id,
             "duration_seconds": round(self.duration_seconds, 3),
             "errors": self.errors,
         }

@@ -15,6 +15,7 @@ from purge.core.rules import (
     identify_artifact_category,
     is_protected_path,
 )
+from purge.core.scoring import calculate_purge_score
 
 
 def get_path_stats(path: Path) -> Tuple[int, int, Optional[datetime], float]:
@@ -81,6 +82,9 @@ class DiskScanner:
         categories: Optional[List[str]] = None,
         min_stale_days: float = 0.0,
         min_size_bytes: int = 0,
+        min_score: float = 0.0,
+        sort_by: str = "size",
+        top: Optional[int] = None,
         git_aware: bool = True,
         custom_rules: Optional[Dict[str, List[str]]] = None,
         ignore_paths: Optional[List[str]] = None,
@@ -90,6 +94,9 @@ class DiskScanner:
         self.categories = categories
         self.min_stale_days = min_stale_days
         self.min_size_bytes = min_size_bytes
+        self.min_score = min_score
+        self.sort_by = sort_by.lower()
+        self.top = top
         self.git_aware = git_aware
         self.custom_rules = custom_rules
         self.ignore_paths = [p.replace("\\", "/").rstrip("/") for p in (ignore_paths or [])]
@@ -119,6 +126,13 @@ class DiskScanner:
                 try:
                     bytes_size, f_count, last_mod, days_stale = future.result()
                     if bytes_size > 0:
+                        score_info = calculate_purge_score(
+                            size_bytes=bytes_size,
+                            days_stale=days_stale,
+                            category=cat,
+                            artifact_name=path.name,
+                            is_global_cache=True,
+                        )
                         global_artifacts.append(
                             Artifact(
                                 path=path,
@@ -129,6 +143,9 @@ class DiskScanner:
                                 days_stale=days_stale,
                                 is_global_cache=True,
                                 description=desc,
+                                purge_score=score_info.total_score,
+                                safety_level=score_info.safety_level.value,
+                                score_recommendation=score_info.recommendation,
                             )
                         )
                 except Exception:
@@ -244,6 +261,19 @@ class DiskScanner:
                                     seen_repo_roots.add(r_str)
                                     uncommitted_repos += 1
 
+                    score_info = calculate_purge_score(
+                        size_bytes=bytes_size,
+                        days_stale=days_stale,
+                        category=category,
+                        artifact_name=cand_path.name,
+                        is_git_repo=is_git,
+                        has_uncommitted=has_uncommitted,
+                        days_since_commit=days_since_commit,
+                    )
+
+                    if self.min_score > 0 and score_info.total_score < self.min_score:
+                        continue
+
                     art = Artifact(
                         path=cand_path,
                         category=category,
@@ -255,6 +285,9 @@ class DiskScanner:
                         has_uncommitted=has_uncommitted,
                         last_commit_time=last_commit_time,
                         days_since_commit=days_since_commit,
+                        purge_score=score_info.total_score,
+                        safety_level=score_info.safety_level.value,
+                        score_recommendation=score_info.recommendation,
                     )
                     artifacts.append(art)
                     total_bytes += bytes_size
@@ -262,8 +295,20 @@ class DiskScanner:
                 except Exception:
                     continue
 
-        # Sort artifacts descending by size (largest targets first)
-        artifacts.sort(key=lambda x: x.size_bytes, reverse=True)
+        # Sort artifacts according to sort_by strategy
+        if self.sort_by == "score":
+            artifacts.sort(key=lambda x: (x.purge_score, x.size_bytes), reverse=True)
+        elif self.sort_by == "stale":
+            artifacts.sort(key=lambda x: x.days_stale, reverse=True)
+        elif self.sort_by == "name":
+            artifacts.sort(key=lambda x: str(x.path).lower())
+        else:  # default: "size"
+            artifacts.sort(key=lambda x: x.size_bytes, reverse=True)
+
+        if self.top and self.top > 0:
+            artifacts = artifacts[: self.top]
+
+        high_priority_count = sum(1 for a in artifacts if a.purge_score >= 65.0)
 
         global_caches = []
         if include_global_caches:
@@ -281,4 +326,5 @@ class DiskScanner:
             scanned_dirs_count=scanned_dirs_count,
             duration_seconds=duration,
             uncommitted_repos_count=uncommitted_repos,
+            high_priority_count=high_priority_count,
         )

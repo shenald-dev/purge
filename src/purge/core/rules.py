@@ -19,6 +19,8 @@ ARTIFACT_TARGETS: Dict[str, List[str]] = {
         ".solid",
         ".remix",
         ".output",
+        ".contentlayer",
+        ".nx",
     ],
     "Python": [
         ".venv",
@@ -31,6 +33,7 @@ ARTIFACT_TARGETS: Dict[str, List[str]] = {
         ".tox",
         ".nox",
         ".hypothesis",
+        ".ipynb_checkpoints",
     ],
     "Rust / Cargo": [
         "target",
@@ -39,12 +42,22 @@ ARTIFACT_TARGETS: Dict[str, List[str]] = {
         ".gradle",
         ".bloop",
         ".metals",
+        ".kotlinc",
     ],
     "Mobile / Cross-Platform": [
         "Pods",
         ".dart_tool",
         "DerivedData",
         ".expo",
+    ],
+    "Systems & Native": [
+        ".build",
+        ".zig-cache",
+        "zig-out",
+        "CMakeFiles",
+    ],
+    "Ruby & PHP": [
+        "vendor",
     ],
     "Build Artifacts": [
         "dist",
@@ -131,8 +144,12 @@ def identify_artifact_category(
     """Identify if a folder or file matches a known developer artifact rule.
 
     Special heuristics:
-    - 'target' is only marked as Rust / Cargo if parent has Cargo.toml or Cargo.lock
-    - 'build' / 'dist' only if parent has package.json, pyproject.toml, Cargo.toml, or setup.py
+    - 'target' is only marked as Rust / Cargo if parent has Cargo.toml or Cargo.lock (or Maven pom.xml)
+    - 'build' / 'dist' only if parent has recognized build manifest
+    - '.build' only if parent has Package.swift (Swift PM)
+    - 'zig-out' / '.zig-cache' only if parent has build.zig
+    - 'CMakeFiles' only if parent has CMakeLists.txt
+    - 'vendor' only if parent has composer.json/lock (PHP) or Gemfile (Ruby)
     """
     # Check custom rules first if provided
     if custom_rules:
@@ -167,6 +184,32 @@ def identify_artifact_category(
                     return category
                 return None
 
+            # Guard for Swift Package Manager .build
+            if name == ".build":
+                if (parent / "Package.swift").exists():
+                    return "Systems & Native"
+                return None
+
+            # Guard for Zig
+            if name in (".zig-cache", "zig-out"):
+                if (parent / "build.zig").exists():
+                    return "Systems & Native"
+                return None
+
+            # Guard for CMake
+            if name == "CMakeFiles":
+                if (parent / "CMakeLists.txt").exists():
+                    return "Systems & Native"
+                return None
+
+            # Guard for PHP / Ruby vendor
+            if name == "vendor":
+                if (parent / "composer.json").exists() or (parent / "composer.lock").exists():
+                    return "PHP / Composer"
+                if (parent / "Gemfile").exists():
+                    return "Ruby / Bundler"
+                return None
+
             return category
 
     return None
@@ -186,6 +229,11 @@ def get_global_cache_targets() -> List[Tuple[Path, str, str]]:
         # yarn
         (home / ".yarn" / "berry" / "cache", "Global Cache: Yarn", "Yarn Berry package cache"),
         (home / ".cache" / "yarn", "Global Cache: Yarn", "Yarn v1 classic cache"),
+        # Bun
+        (home / ".bun" / "install" / "cache", "Global Cache: Bun", "Bun package install cache"),
+        # Deno
+        (home / ".cache" / "deno", "Global Cache: Deno", "Deno remote dependency cache"),
+        (local_appdata / "deno", "Global Cache: Deno", "Deno dependency cache"),
         # pip
         (local_appdata / "pip" / "cache", "Global Cache: pip", "Python pip HTTP & wheel cache"),
         (home / ".cache" / "pip", "Global Cache: pip", "Python pip HTTP & wheel cache"),
@@ -200,6 +248,11 @@ def get_global_cache_targets() -> List[Tuple[Path, str, str]]:
         (local_appdata / "go-build", "Global Cache: Go", "Go compiler build cache"),
         # gradle
         (home / ".gradle" / "caches", "Global Cache: Gradle", "Gradle dependency cache"),
+        # Composer (PHP)
+        (home / ".cache" / "composer", "Global Cache: Composer", "Composer package cache"),
+        (local_appdata / "Composer" / "cache", "Global Cache: Composer", "Composer package cache"),
+        # Bundler (Ruby)
+        (home / ".bundle" / "cache", "Global Cache: Bundler", "Ruby gem download cache"),
     ]
 
     existing = []

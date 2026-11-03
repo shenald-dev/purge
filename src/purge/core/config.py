@@ -21,10 +21,14 @@ class PurgeConfig:
     max_depth: int = 10
     min_stale_days: float = 0.0
     min_size_bytes: int = 0
+    min_score: float = 0.0
+    sort_by: str = "size"
+    workers: int = 4
     categories: Optional[List[str]] = None
     custom_rules: Dict[str, List[str]] = field(default_factory=dict)
     ignore_paths: List[str] = field(default_factory=list)
     default_trash: bool = False
+    default_vault: bool = False
     git_aware: bool = True
     default_format: str = "terminal"
 
@@ -37,6 +41,12 @@ class PurgeConfig:
             cfg.min_stale_days = float(data["min_stale_days"])
         if "min_size_bytes" in data:
             cfg.min_size_bytes = int(data["min_size_bytes"])
+        if "min_score" in data:
+            cfg.min_score = float(data["min_score"])
+        if "sort_by" in data:
+            cfg.sort_by = str(data["sort_by"]).lower()
+        if "workers" in data:
+            cfg.workers = int(data["workers"])
         if "categories" in data and isinstance(data["categories"], list):
             cfg.categories = [str(c) for c in data["categories"]]
         if "custom_rules" in data and isinstance(data["custom_rules"], dict):
@@ -45,6 +55,8 @@ class PurgeConfig:
             cfg.ignore_paths = [str(p) for p in data["ignore_paths"]]
         if "default_trash" in data:
             cfg.default_trash = bool(data["default_trash"])
+        if "default_vault" in data:
+            cfg.default_vault = bool(data["default_vault"])
         if "git_aware" in data:
             cfg.git_aware = bool(data["git_aware"])
         if "default_format" in data:
