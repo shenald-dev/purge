@@ -106,6 +106,7 @@ def is_protected_path(path: Path, allow_home: bool = False) -> bool:
             or str(path) in CRITICAL_SYSTEM_PATHS
             or str(path).rstrip("\\/") in CRITICAL_SYSTEM_PATHS
             or str_path == ""
+            or str(path) in CRITICAL_SYSTEM_PATHS
         ):
             return True
 
