@@ -4,6 +4,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -18,10 +19,9 @@ class GitProjectInfo:
     current_branch: Optional[str] = None
 
 
-def inspect_git_project(path: Path) -> GitProjectInfo:
-    """Inspect the git status and last commit date of a project directory."""
+@lru_cache(maxsize=1024)
+def _get_git_root(path: Path) -> Optional[Path]:
     try:
-        # Check if inside git work tree and get root
         res_root = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
             cwd=str(path),
@@ -30,11 +30,16 @@ def inspect_git_project(path: Path) -> GitProjectInfo:
             check=False,
             timeout=2.0,
         )
-        if res_root.returncode != 0 or not res_root.stdout.strip():
-            return GitProjectInfo(is_git=False)
+        if res_root.returncode == 0 and res_root.stdout.strip():
+            return Path(res_root.stdout.strip())
+        return None
+    except (subprocess.SubprocessError, OSError):
+        return None
 
-        repo_root = Path(res_root.stdout.strip())
 
+@lru_cache(maxsize=1024)
+def _get_git_info(repo_root: Path) -> GitProjectInfo:
+    try:
         # Check for uncommitted changes
         res_status = subprocess.run(
             ["git", "status", "--porcelain"],
@@ -48,14 +53,16 @@ def inspect_git_project(path: Path) -> GitProjectInfo:
 
         # Get current branch
         res_branch = subprocess.run(
-            ["git", "branch", "--show-current"],
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
             check=False,
             timeout=2.0,
         )
-        current_branch = res_branch.stdout.strip() if res_branch.returncode == 0 else None
+        current_branch = (
+            res_branch.stdout.strip() if res_branch.returncode == 0 else None
+        )
 
         # Get last commit timestamp
         res_log = subprocess.run(
@@ -66,21 +73,34 @@ def inspect_git_project(path: Path) -> GitProjectInfo:
             check=False,
             timeout=2.0,
         )
-
         last_commit_time = None
-        days_since_commit = 0.0
-        if res_log.returncode == 0 and res_log.stdout.strip().isdigit():
-            epoch = int(res_log.stdout.strip())
-            last_commit_time = datetime.fromtimestamp(epoch, tz=timezone.utc)
-            days_since_commit = max(0.0, (time.time() - epoch) / 86400.0)
+        days_since = 0.0
+
+        if res_log.returncode == 0 and res_log.stdout.strip():
+            ts = int(res_log.stdout.strip())
+            last_commit_time = datetime.fromtimestamp(ts, tz=timezone.utc)
+            days_since = (time.time() - ts) / (24 * 3600)
 
         return GitProjectInfo(
             is_git=True,
             repo_root=repo_root,
             has_uncommitted=has_uncommitted,
             last_commit_time=last_commit_time,
-            days_since_last_commit=days_since_commit,
+            days_since_last_commit=max(0.0, days_since),
             current_branch=current_branch,
         )
     except (subprocess.SubprocessError, OSError):
         return GitProjectInfo(is_git=False)
+
+
+def inspect_git_project(path: Path, force_refresh: bool = False) -> GitProjectInfo:
+    """Inspect the git status and last commit date of a project directory."""
+    if force_refresh:
+        _get_git_root.cache_clear()
+        _get_git_info.cache_clear()
+
+    repo_root = _get_git_root(path)
+    if not repo_root:
+        return GitProjectInfo(is_git=False)
+
+    return _get_git_info(repo_root)
