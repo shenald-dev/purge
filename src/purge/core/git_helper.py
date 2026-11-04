@@ -22,18 +22,18 @@ class GitProjectInfo:
 @lru_cache(maxsize=1024)
 def _get_git_root(path: Path) -> Optional[Path]:
     try:
-        res_root = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=str(path),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=2.0,
-        )
-        if res_root.returncode == 0 and res_root.stdout.strip():
-            return Path(res_root.stdout.strip())
-        return None
-    except (subprocess.SubprocessError, OSError):
+        resolved_path = path.resolve()
+        if not resolved_path.is_dir():
+            resolved_path = resolved_path.parent
+
+        current = resolved_path
+        while True:
+            if (current / ".git").exists():
+                return current
+            if current == current.parent:
+                return None
+            current = current.parent
+    except OSError:
         return None
 
 
