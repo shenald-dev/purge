@@ -7,3 +7,8 @@
 - **QA & Veto Actions:** Added edge-case unit tests to `test_rules_advanced.py` to ensure `is_protected_path` handles `str(path)` combinations robustly (testing `PureWindowsPath` on Posix and vice versa), and `test_cli_coverage.py` to verify `render_port_status` properly accepts `None` for the newly modified `Optional[ZombieProcess]` typing.
 - **Entropy Pruned:** Checked codebase using vulture. No dead code found to prune; existing items flagged are false positive Typer callbacks and mock attributes.
 - **Deferred / Blocked:** Skipped dependency hygiene (Safe Patch/Minor) as no `.lock` file exists in the repository to verify safe upgrades.
+
+## 2026-11-04 — Lifecycle & Assurance Ledger
+- **QA & Veto Actions:** Verified recent commits adding test coverage for vault and zombies.
+- **Entropy Pruned:** Removed unused PROTECTED from SafetyLevel and quarantined_at from VaultItem (3 lines deleted).
+- **Deferred / Blocked:** Skipped dependency hygiene since no lockfile exists.

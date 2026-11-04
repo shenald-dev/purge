@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **[Pruned]:** Removed unused `PROTECTED` safety level and `quarantined_at` tracking variable.
+
+---
+
 ## [2.0.0] - 2026-11-03
 
 ### Added
