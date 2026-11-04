@@ -26,7 +26,6 @@ class VaultItem:
     vault_path: str
     size_bytes: int
     is_dir: bool
-    quarantined_at: str
 
 
 @dataclass
@@ -93,7 +92,6 @@ class QuarantineVault:
                 vault_path=str(dest.resolve()),
                 size_bytes=size_bytes,
                 is_dir=is_dir,
-                quarantined_at=datetime.now(timezone.utc).isoformat(),
             )
             return True, item, None
         except Exception as e:

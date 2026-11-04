@@ -14,7 +14,6 @@ class SafetyLevel(str, Enum):
     SAFE = "SAFE"
     MODERATE = "MODERATE"
     CAUTION = "CAUTION"
-    PROTECTED = "PROTECTED"
 
 
 @dataclass

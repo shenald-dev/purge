@@ -129,7 +129,6 @@ def test_vault_edge_cases(tmp_path):
                 vault_path=str(tmp_path / "vault" / session_id / "i1"),
                 size_bytes=5,
                 is_dir=False,
-                quarantined_at="2026-11-03T12:00:00Z",
             )
         ],
     )
@@ -165,7 +164,7 @@ def test_console_renderers(capsys):
     render_clean_result(res)
 
     # Vault tables
-    item = VaultItem("i1", "/path/to/thing", "/vault/i1", 1000, True, "2026-11-03T12:00:00Z")
+    item = VaultItem("i1", "/path/to/thing", "/vault/i1", 1000, True)
     session = VaultSession("vault_12345", "2026-11-03T12:00:00Z", 1000, 1, [item])
     render_vault_sessions_table([session])
     render_vault_sessions_table([])
