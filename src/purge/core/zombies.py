@@ -202,8 +202,3 @@ def kill_zombie_tree(pid: int, force: bool = True) -> int:
         return count
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         return 0
-
-
-def kill_zombie(pid: int, force: bool = False) -> bool:
-    """Terminate or kill a zombie process safely (backward-compatible wrapper)."""
-    return kill_zombie_tree(pid, force=force) > 0

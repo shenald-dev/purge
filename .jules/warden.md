@@ -12,3 +12,8 @@
 - **QA & Veto Actions:** Verified recent commits adding test coverage for vault and zombies.
 - **Entropy Pruned:** Removed unused PROTECTED from SafetyLevel and quarantined_at from VaultItem (3 lines deleted).
 - **Deferred / Blocked:** Skipped dependency hygiene since no lockfile exists.
+
+## 2026-11-05 — Lifecycle & Assurance Ledger
+- **QA & Veto Actions:** N/A
+- **Entropy Pruned:** Removed unused `default_format` from `PurgeConfig`, and dead functions `list_system_partitions` and `kill_zombie` from core components.
+- **Deferred / Blocked:** N/A
