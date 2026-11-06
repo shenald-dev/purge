@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **[Pruned]:** Removed unused `PROTECTED` safety level and `quarantined_at` tracking variable.
+- **[Pruned]:** Removed unused `default_format` from `PurgeConfig`, and dead functions `list_system_partitions` and `kill_zombie` from core components.
 
 ---
 

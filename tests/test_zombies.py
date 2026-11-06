@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from purge.core.zombies import find_zombies, kill_zombie
+from purge.core.zombies import find_zombies
 
 
 def test_find_zombies_with_mocked_psutil():
@@ -39,14 +39,3 @@ def test_find_zombies_with_mocked_psutil():
 def test_missing_psutil():
     with patch("purge.core.zombies.psutil", None):
         assert find_zombies(target_port=3000) == []
-        assert kill_zombie(1234, force=True) is False
-
-
-def test_kill_zombie_success():
-    mock_proc = MagicMock()
-
-    with patch("purge.core.zombies.psutil") as mock_ps:
-        mock_ps.Process.return_value = mock_proc
-        res = kill_zombie(1234, force=True)
-        assert res is True
-        mock_proc.kill.assert_called_once()

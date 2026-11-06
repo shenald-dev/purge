@@ -30,7 +30,6 @@ class PurgeConfig:
     default_trash: bool = False
     default_vault: bool = False
     git_aware: bool = True
-    default_format: str = "terminal"
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PurgeConfig":
@@ -59,8 +58,6 @@ class PurgeConfig:
             cfg.default_vault = bool(data["default_vault"])
         if "git_aware" in data:
             cfg.git_aware = bool(data["git_aware"])
-        if "default_format" in data:
-            cfg.default_format = str(data["default_format"]).lower()
         return cfg
 
 

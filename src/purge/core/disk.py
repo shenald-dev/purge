@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from purge.core.models import format_bytes
 
@@ -124,33 +124,3 @@ def get_partition_for_path(path: Path, bloat_bytes: int = 0) -> Optional[Partiti
         percent_used=usage.percent,
         bloat_bytes=bloat_bytes,
     )
-
-
-def list_system_partitions() -> List[PartitionInfo]:
-    """List all mounted physical partitions with disk usage statistics."""
-    if psutil is None:
-        return []
-
-    results = []
-    try:
-        partitions = psutil.disk_partitions(all=False)
-        for part in partitions:
-            try:
-                usage = psutil.disk_usage(part.mountpoint)
-                results.append(
-                    PartitionInfo(
-                        mountpoint=part.mountpoint,
-                        device=part.device,
-                        fstype=part.fstype,
-                        total_bytes=usage.total,
-                        used_bytes=usage.used,
-                        free_bytes=usage.free,
-                        percent_used=usage.percent,
-                    )
-                )
-            except (PermissionError, OSError):
-                continue
-    except Exception:
-        pass
-
-    return results

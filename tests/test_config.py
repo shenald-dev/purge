@@ -10,7 +10,6 @@ def test_purge_config_defaults():
     assert cfg.min_size_bytes == 0
     assert cfg.git_aware is True
     assert cfg.default_trash is False
-    assert cfg.default_format == "terminal"
 
 
 def test_purge_config_from_dict():
@@ -23,7 +22,6 @@ def test_purge_config_from_dict():
         "ignore_paths": ["vendor/*"],
         "default_trash": True,
         "git_aware": False,
-        "default_format": "json",
     }
     cfg = PurgeConfig.from_dict(data)
     assert cfg.max_depth == 5
@@ -34,7 +32,6 @@ def test_purge_config_from_dict():
     assert cfg.ignore_paths == ["vendor/*"]
     assert cfg.default_trash is True
     assert cfg.git_aware is False
-    assert cfg.default_format == "json"
 
 
 def test_load_config_from_purge_toml(tmp_path: Path):

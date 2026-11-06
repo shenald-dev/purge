@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from purge.core.disk import PartitionInfo, get_partition_for_path, list_system_partitions
+from purge.core.disk import PartitionInfo, get_partition_for_path
 
 
 def test_partition_info_calculations():
@@ -31,10 +31,3 @@ def test_get_partition_for_path():
     assert part.total_bytes > 0
     assert part.free_bytes >= 0
     assert part.bloat_bytes == 1024 * 1024
-
-
-def test_list_system_partitions():
-    partitions = list_system_partitions()
-    assert isinstance(partitions, list)
-    if partitions:
-        assert partitions[0].total_bytes > 0
