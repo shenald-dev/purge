@@ -17,3 +17,8 @@
 - **QA & Veto Actions:** N/A
 - **Entropy Pruned:** Removed unused `default_format` from `PurgeConfig`, and dead functions `list_system_partitions` and `kill_zombie` from core components.
 - **Deferred / Blocked:** N/A
+
+## 2026-11-06 — Lifecycle & Assurance Ledger
+- **QA & Veto Actions:** N/A
+- **Entropy Pruned:** Checked codebase using vulture. No dead code found to prune; existing items flagged are false positive Typer callbacks and mock attributes.
+- **Deferred / Blocked:** Skipped dependency hygiene since no lockfile exists.
