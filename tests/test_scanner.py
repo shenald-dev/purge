@@ -94,3 +94,13 @@ def test_scanner_discovers_symlinked_artifacts(tmp_path):
     # The size should be the size of the symlink, not the 1MB target
     assert report.artifacts[0].size_bytes < 1000
     assert report.artifacts[0].file_count == 1
+
+
+def test_scanner_rejects_protected_system_root():
+    import os
+    from pathlib import Path
+    scanner = DiskScanner()
+    target = Path("C:\\") if os.name == "nt" else Path("/etc")
+    with pytest.raises(ValueError, match="protected system directory"):
+        scanner.scan(target)
+
