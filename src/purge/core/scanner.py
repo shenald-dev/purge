@@ -102,8 +102,7 @@ class DiskScanner:
         self.ignore_paths = [p.replace("\\", "/").rstrip("/") for p in (ignore_paths or [])]
         self.progress_callback = progress_callback
 
-    def _is_ignored(self, p: Path) -> bool:
-        str_p = str(p).replace("\\", "/").rstrip("/")
+    def _is_ignored(self, str_p: str) -> bool:
         for ign in self.ignore_paths:
             if ign in str_p:
                 return True
@@ -191,9 +190,10 @@ class DiskScanner:
                             if entry_name in PROTECTED_DIR_NAMES:
                                 continue
 
-                            entry_path = Path(entry.path)
-                            if self._is_ignored(entry_path):
-                                continue
+                            if self.ignore_paths:
+                                entry_path_str = entry.path.replace("\\", "/").rstrip("/")
+                                if self._is_ignored(entry_path_str):
+                                    continue
 
                             # Check if this matches a bloat artifact
                             category = identify_artifact_category(
@@ -203,7 +203,7 @@ class DiskScanner:
                                 if not self.categories or any(
                                     c.lower() in category.lower() for c in self.categories
                                 ):
-                                    discovered_candidates.append((entry_path, category))
+                                    discovered_candidates.append((Path(entry.path), category))
                                 # CRITICAL: Do NOT recurse into artifact folders like node_modules!
                                 continue
 
@@ -211,7 +211,7 @@ class DiskScanner:
                                 continue
 
                             if entry.is_dir(follow_symlinks=False):
-                                stack.append((entry_path, depth + 1))
+                                stack.append((Path(entry.path), depth + 1))
                         except (OSError, PermissionError):
                             continue
             except (OSError, PermissionError):

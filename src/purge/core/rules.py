@@ -72,6 +72,11 @@ ARTIFACT_TARGETS: Dict[str, List[str]] = {
     ],
 }
 
+_ARTIFACT_MAP: Dict[str, str] = {}
+for cat, patterns in ARTIFACT_TARGETS.items():
+    for pat in patterns:
+        _ARTIFACT_MAP[pat] = cat
+
 # Directories we should never traverse deeper into, or delete
 PROTECTED_DIR_NAMES: Set[str] = {
     ".git",
@@ -157,60 +162,60 @@ def identify_artifact_category(
             if name in patterns:
                 return cat
 
-    for category, patterns in ARTIFACT_TARGETS.items():
-        if name in patterns:
-            # Special guard for generic names like 'target'
-            if name == "target":
-                if (parent / "Cargo.toml").exists() or (parent / "Cargo.lock").exists():
-                    return "Rust / Cargo"
-                if (parent / "pom.xml").exists():
-                    return "Java / Maven"
-                return None
+    category = _ARTIFACT_MAP.get(name)
+    if category:
+        # Special guard for generic names like 'target'
+        if name == "target":
+            if (parent / "Cargo.toml").exists() or (parent / "Cargo.lock").exists():
+                return "Rust / Cargo"
+            if (parent / "pom.xml").exists():
+                return "Java / Maven"
+            return None
 
-            # Special guard for generic names like 'build' or 'dist'
-            if name in ("build", "dist", "out"):
-                has_manifest = any(
-                    (parent / m).exists()
-                    for m in [
-                        "package.json",
-                        "pyproject.toml",
-                        "setup.py",
-                        "Cargo.toml",
-                        "CMakeLists.txt",
-                        "Makefile",
-                    ]
-                )
-                if has_manifest:
-                    return category
-                return None
+        # Special guard for generic names like 'build' or 'dist'
+        if name in ("build", "dist", "out"):
+            has_manifest = any(
+                (parent / m).exists()
+                for m in [
+                    "package.json",
+                    "pyproject.toml",
+                    "setup.py",
+                    "Cargo.toml",
+                    "CMakeLists.txt",
+                    "Makefile",
+                ]
+            )
+            if has_manifest:
+                return category
+            return None
 
-            # Guard for Swift Package Manager .build
-            if name == ".build":
-                if (parent / "Package.swift").exists():
-                    return "Systems & Native"
-                return None
+        # Guard for Swift Package Manager .build
+        if name == ".build":
+            if (parent / "Package.swift").exists():
+                return "Systems & Native"
+            return None
 
-            # Guard for Zig
-            if name in (".zig-cache", "zig-out"):
-                if (parent / "build.zig").exists():
-                    return "Systems & Native"
-                return None
+        # Guard for Zig
+        if name in (".zig-cache", "zig-out"):
+            if (parent / "build.zig").exists():
+                return "Systems & Native"
+            return None
 
-            # Guard for CMake
-            if name == "CMakeFiles":
-                if (parent / "CMakeLists.txt").exists():
-                    return "Systems & Native"
-                return None
+        # Guard for CMake
+        if name == "CMakeFiles":
+            if (parent / "CMakeLists.txt").exists():
+                return "Systems & Native"
+            return None
 
-            # Guard for PHP / Ruby vendor
-            if name == "vendor":
-                if (parent / "composer.json").exists() or (parent / "composer.lock").exists():
-                    return "PHP / Composer"
-                if (parent / "Gemfile").exists():
-                    return "Ruby / Bundler"
-                return None
+        # Guard for PHP / Ruby vendor
+        if name == "vendor":
+            if (parent / "composer.json").exists() or (parent / "composer.lock").exists():
+                return "PHP / Composer"
+            if (parent / "Gemfile").exists():
+                return "Ruby / Bundler"
+            return None
 
-            return category
+        return category
 
     return None
 
