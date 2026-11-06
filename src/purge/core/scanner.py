@@ -161,7 +161,10 @@ class DiskScanner:
     ) -> PurgeReport:
         """Scan root_path recursively and return PurgeReport."""
         start_time = time.time()
-        root = root_path.resolve()
+        if is_protected_path(root_path, allow_home=True):
+            raise ValueError(f"Target path '{root_path}' is a protected system directory.")
+
+        root = Path(root_path).resolve()
 
         if is_protected_path(root, allow_home=True):
             raise ValueError(f"Target path '{root}' is a protected system directory.")

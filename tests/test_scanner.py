@@ -94,3 +94,16 @@ def test_scanner_discovers_symlinked_artifacts(tmp_path):
     # The size should be the size of the symlink, not the 1MB target
     assert report.artifacts[0].size_bytes < 1000
     assert report.artifacts[0].file_count == 1
+
+def test_scan_cross_platform_protected_path():
+    from pathlib import PureWindowsPath
+
+    s = DiskScanner()
+
+    # testing path string combinations using PureWindowsPath to ensure it triggers correctly
+    # on all OS platforms.
+    with pytest.raises(ValueError) as exc:
+        s.scan(PureWindowsPath("C:\\"))
+
+    # Should catch as a protected path without mutating to something innocent
+    assert "Target path" in str(exc.value)
