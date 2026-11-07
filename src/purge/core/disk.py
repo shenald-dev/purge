@@ -80,6 +80,21 @@ class PartitionInfo:
         }
 
 
+def list_system_partitions() -> list[PartitionInfo]:
+    """Backward-compatible wrapper to list all system partitions."""
+    if psutil is None:
+        return []
+    partitions = []
+    try:
+        for part in psutil.disk_partitions(all=False):
+            p_info = get_partition_for_path(Path(part.mountpoint))
+            if p_info:
+                partitions.append(p_info)
+    except Exception:
+        pass
+    return partitions
+
+
 def get_partition_for_path(path: Path, bloat_bytes: int = 0) -> Optional[PartitionInfo]:
     """Retrieve the partition information for a specific directory or file path."""
     if psutil is None:

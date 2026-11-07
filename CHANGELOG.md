@@ -10,8 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **[Fixed]:** Fixed system path validation bypass on cross-platform paths by checking raw strings before resolution.
+- **[Fixed]:** Restored mistakenly removed backward-compatible wrapper functions `kill_zombie` and `list_system_partitions`.
 - **[Pruned]:** Removed unused `PROTECTED` safety level and `quarantined_at` tracking variable.
-- **[Pruned]:** Removed unused `default_format` from `PurgeConfig`, and dead functions `list_system_partitions` and `kill_zombie` from core components.
+- **[Pruned]:** Removed unused `default_format` from `PurgeConfig`.
 
 ---
 
