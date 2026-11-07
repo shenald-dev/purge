@@ -31,3 +31,39 @@ def test_get_partition_for_path():
     assert part.total_bytes > 0
     assert part.free_bytes >= 0
     assert part.bloat_bytes == 1024 * 1024
+
+
+def test_get_partition_for_path_mocked(monkeypatch):
+    import psutil
+
+    class MockPart:
+        def __init__(self, mountpoint, device, fstype):
+            self.mountpoint = mountpoint
+            self.device = device
+            self.fstype = fstype
+
+    def mock_partitions(all=False):
+        return [
+            MockPart("/", "/dev/sda1", "ext4"),
+            MockPart("/mnt/data", "/dev/sdb1", "ext4"),
+            MockPart("/mnt/data/other", "/dev/sdb2", "ext4"),
+        ]
+
+    class MockUsage:
+        def __init__(self):
+            self.total = 100
+            self.used = 50
+            self.free = 50
+            self.percent = 50.0
+
+    def mock_disk_usage(path):
+        return MockUsage()
+
+    monkeypatch.setattr(psutil, "disk_partitions", mock_partitions)
+    monkeypatch.setattr(psutil, "disk_usage", mock_disk_usage)
+
+    part1 = get_partition_for_path(Path("/home/user"), bloat_bytes=0)
+    assert part1.mountpoint == "/"
+
+    part2 = get_partition_for_path(Path("/mnt/data/myfiles"), bloat_bytes=0)
+    assert part2.mountpoint == "/mnt/data"

@@ -104,9 +104,23 @@ def get_partition_for_path(path: Path, bloat_bytes: int = 0) -> Optional[Partiti
         for part in partitions:
             m = part.mountpoint
             if os.path.splitdrive(resolved_path)[0].lower() == os.path.splitdrive(m)[0].lower():
-                if len(m) > best_len:
-                    best_len = len(m)
-                    best_match = part
+                import ntpath
+                import posixpath
+                if os.path.splitdrive(resolved_path)[0] or os.path.splitdrive(m)[0] or '\\' in resolved_path or '\\' in m:
+                    path_mod = ntpath
+                else:
+                    path_mod = posixpath
+
+                path_norm = path_mod.normcase(path_mod.normpath(resolved_path))
+                mount_norm = path_mod.normcase(path_mod.normpath(m))
+
+                try:
+                    if path_mod.commonpath([path_norm, mount_norm]) == mount_norm:
+                        if len(m) > best_len:
+                            best_len = len(m)
+                            best_match = part
+                except ValueError:
+                    pass
         if best_match:
             mount = best_match.mountpoint
             device = best_match.device
