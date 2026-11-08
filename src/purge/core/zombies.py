@@ -157,6 +157,11 @@ def get_process_on_port(port: int) -> Optional[ZombieProcess]:
     return zombies[0] if zombies else None
 
 
+def kill_zombie(pid: int, force: bool = True) -> bool:
+    """Backward-compatible wrapper for kill_zombie_tree."""
+    return kill_zombie_tree(pid, force) > 0
+
+
 def kill_zombie_tree(pid: int, force: bool = True) -> int:
     """Recursively terminate a process and all its spawned children to avoid orphaned zombies.
 

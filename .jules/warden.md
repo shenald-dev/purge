@@ -22,3 +22,8 @@
 - **QA & Veto Actions:** N/A
 - **Entropy Pruned:** Checked codebase using vulture. No dead code found to prune; existing items flagged are false positive Typer callbacks and mock attributes.
 - **Deferred / Blocked:** Skipped dependency hygiene since no lockfile exists.
+
+## 2026-11-07 — Lifecycle & Assurance Ledger
+- **QA & Veto Actions:** Fixed a regression in `is_protected_path` to validate raw string representation before calling `.resolve()` to avoid mutating cross-platform paths. Restored mistakenly pruned backward-compatible wrapper functions `list_system_partitions` and `kill_zombie`.
+- **Entropy Pruned:** Checked codebase using vulture. No dead code found to prune; existing items flagged are false positive Typer callbacks and mock attributes.
+- **Deferred / Blocked:** Skipped dependency hygiene (Safe Patch/Minor) as no `.lock` file exists in the repository to verify safe upgrades.

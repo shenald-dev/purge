@@ -113,6 +113,10 @@ CRITICAL_SYSTEM_PATHS: Set[str] = {
 def is_protected_path(path: Path, allow_home: bool = False) -> bool:
     """Check if path is a protected root, user profile root, or system path."""
     try:
+        # Check raw string before resolving
+        if str(path) in CRITICAL_SYSTEM_PATHS or str(path).rstrip("\\/") in CRITICAL_SYSTEM_PATHS:
+            return True
+
         resolved = path.resolve()
         str_path = str(resolved).rstrip("\\/")
 
@@ -121,10 +125,7 @@ def is_protected_path(path: Path, allow_home: bool = False) -> bool:
             resolved.parent == resolved
             or len(resolved.parts) <= 1
             or str_path in CRITICAL_SYSTEM_PATHS
-            or str(path) in CRITICAL_SYSTEM_PATHS
-            or str(path).rstrip("\\/") in CRITICAL_SYSTEM_PATHS
             or str_path == ""
-            or str(path) in CRITICAL_SYSTEM_PATHS
         ):
             return True
 
