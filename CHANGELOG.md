@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **[Fixed]:** Fixed cross-platform POSIX mountpoint resolution and ancestor traversal for uncreated paths in `get_partition_for_path` on Windows.
 - **[Fixed]:** Fixed system path validation bypass on cross-platform paths by checking raw strings before resolution.
 - **[Fixed]:** Restored mistakenly removed backward-compatible wrapper functions `kill_zombie` and `list_system_partitions`.
 - **[Pruned]:** Removed unused `PROTECTED` safety level and `quarantined_at` tracking variable.

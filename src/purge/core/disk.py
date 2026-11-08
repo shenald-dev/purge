@@ -102,11 +102,17 @@ def get_partition_for_path(path: Path, bloat_bytes: int = 0) -> Optional[Partiti
 
     resolved_path = str(path.resolve())
 
-    # Fallback disk usage for the path
+    # Fallback disk usage for the path with ancestor traversal if path does not exist
     try:
         usage = psutil.disk_usage(resolved_path)
     except Exception:
-        return None
+        try:
+            curr = Path(resolved_path)
+            while not curr.exists() and curr != curr.parent:
+                curr = curr.parent
+            usage = psutil.disk_usage(str(curr))
+        except Exception:
+            return None
 
     mount = resolved_path
     device = resolved_path
@@ -116,19 +122,36 @@ def get_partition_for_path(path: Path, bloat_bytes: int = 0) -> Optional[Partiti
         partitions = psutil.disk_partitions(all=False)
         best_match = None
         best_len = -1
+        import ntpath
+        import posixpath
+
+        p_drive, p_tail = os.path.splitdrive(resolved_path)
+
         for part in partitions:
             m = part.mountpoint
-            if os.path.splitdrive(resolved_path)[0].lower() == os.path.splitdrive(m)[0].lower():
-                import ntpath
-                import posixpath
-                if os.path.splitdrive(resolved_path)[0] or os.path.splitdrive(m)[0] or '\\' in resolved_path or '\\' in m:
+            m_drive, m_tail = os.path.splitdrive(m)
+
+            if m_drive or (p_drive and "\\" in m):
+                # Windows drive partition matching
+                if p_drive.lower() == m_drive.lower():
                     path_mod = ntpath
-                else:
-                    path_mod = posixpath
-
-                path_norm = path_mod.normcase(path_mod.normpath(resolved_path))
+                    path_norm = path_mod.normcase(path_mod.normpath(resolved_path))
+                    mount_norm = path_mod.normcase(path_mod.normpath(m))
+                    try:
+                        if path_mod.commonpath([path_norm, mount_norm]) == mount_norm:
+                            if len(m) > best_len:
+                                best_len = len(m)
+                                best_match = part
+                    except ValueError:
+                        pass
+            else:
+                # POSIX mountpoint matching (handles cross-platform paths on Windows)
+                posix_target = p_tail.replace("\\", "/")
+                if not posix_target.startswith("/"):
+                    posix_target = "/" + posix_target
+                path_mod = posixpath
+                path_norm = path_mod.normcase(path_mod.normpath(posix_target))
                 mount_norm = path_mod.normcase(path_mod.normpath(m))
-
                 try:
                     if path_mod.commonpath([path_norm, mount_norm]) == mount_norm:
                         if len(m) > best_len:
@@ -136,6 +159,7 @@ def get_partition_for_path(path: Path, bloat_bytes: int = 0) -> Optional[Partiti
                             best_match = part
                 except ValueError:
                     pass
+
         if best_match:
             mount = best_match.mountpoint
             device = best_match.device
