@@ -67,3 +67,56 @@ def test_get_partition_for_path_mocked(monkeypatch):
 
     part2 = get_partition_for_path(Path("/mnt/data/myfiles"), bloat_bytes=0)
     assert part2.mountpoint == "/mnt/data"
+
+
+def test_get_partition_for_existing_file():
+    """Verify partition resolution for an existing file path on disk."""
+    part = get_partition_for_path(Path(__file__), bloat_bytes=512)
+    assert part is not None
+    assert part.total_bytes > 0
+    assert part.free_bytes >= 0
+    assert part.bloat_bytes == 512
+
+
+def test_get_partition_for_unc_path_mocked(monkeypatch):
+    """Verify UNC share partition matching without relative/absolute path errors."""
+    import psutil
+
+    class MockPart:
+        def __init__(self, mountpoint, device=r"\\server\share", fstype="SMB"):
+            self.mountpoint = mountpoint
+            self.device = device
+            self.fstype = fstype
+
+    class MockUsage:
+        total = 1000
+        used = 500
+        free = 500
+        percent = 50.0
+
+    monkeypatch.setattr(psutil, "disk_partitions", lambda all=False: [MockPart(r"\\server\share")])
+    monkeypatch.setattr(psutil, "disk_usage", lambda p: MockUsage())
+    monkeypatch.setattr(Path, "resolve", lambda self: Path(r"\\server\share\sub\file.txt"))
+
+    part = get_partition_for_path(Path("dummy"))
+    assert part is not None
+    assert part.mountpoint == r"\\server\share"
+
+
+def test_get_partition_for_unresolvable_unc_path(monkeypatch):
+    """Verify graceful handling when path.resolve() fails with WinError 53 on offline UNC."""
+    def mock_resolve_fail(self):
+        raise FileNotFoundError(53, "The network path was not found")
+
+    monkeypatch.setattr(Path, "resolve", mock_resolve_fail)
+    part = get_partition_for_path(Path(r"\\nonexistent_srv\share\file.txt"))
+    assert part is None
+
+
+def test_get_partition_for_nonexistent_path():
+    """Verify ancestor traversal for a non-existent path in an existing directory tree."""
+    nonexistent = Path.cwd() / "nonexistent_subfolder_xyz" / "nonexistent_file.txt"
+    part = get_partition_for_path(nonexistent)
+    assert part is not None
+    assert part.total_bytes > 0
+

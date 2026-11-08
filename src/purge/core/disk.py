@@ -100,15 +100,24 @@ def get_partition_for_path(path: Path, bloat_bytes: int = 0) -> Optional[Partiti
     if psutil is None:
         return None
 
-    resolved_path = str(path.resolve())
+    try:
+        resolved_path = str(path.resolve())
+    except Exception:
+        try:
+            resolved_path = str(path.absolute())
+        except Exception:
+            resolved_path = str(path)
 
     # Fallback disk usage for the path with ancestor traversal if path does not exist
     try:
-        usage = psutil.disk_usage(resolved_path)
+        curr = Path(resolved_path)
+        if curr.is_file():
+            curr = curr.parent
+        usage = psutil.disk_usage(str(curr))
     except Exception:
         try:
             curr = Path(resolved_path)
-            while not curr.exists() and curr != curr.parent:
+            while not curr.is_dir() and curr != curr.parent:
                 curr = curr.parent
             usage = psutil.disk_usage(str(curr))
         except Exception:
@@ -135,10 +144,17 @@ def get_partition_for_path(path: Path, bloat_bytes: int = 0) -> Optional[Partiti
                 # Windows drive partition matching
                 if p_drive.lower() == m_drive.lower():
                     path_mod = ntpath
-                    path_norm = path_mod.normcase(path_mod.normpath(resolved_path))
-                    mount_norm = path_mod.normcase(path_mod.normpath(m))
+                    p_norm_str = (
+                        resolved_path
+                        if resolved_path.endswith(("\\", "/"))
+                        else resolved_path + "\\"
+                    )
+                    m_norm_str = m if m.endswith(("\\", "/")) else m + "\\"
+                    path_norm = path_mod.normcase(path_mod.normpath(p_norm_str))
+                    mount_norm = path_mod.normcase(path_mod.normpath(m_norm_str))
                     try:
-                        if path_mod.commonpath([path_norm, mount_norm]) == mount_norm:
+                        cp = path_mod.commonpath([path_norm, mount_norm])
+                        if cp == mount_norm or cp.rstrip("\\") == mount_norm.rstrip("\\"):
                             if len(m) > best_len:
                                 best_len = len(m)
                                 best_match = part
