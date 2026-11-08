@@ -4,6 +4,9 @@ version = "2.0.0"
 description = "🧹 Zero-latency developer bloat and zombie process reaper. Reclaim 50GB in 3 seconds."
 readme = "README.md"
 authors = [
+    { name = "Shenal Diluksha", email = "shenald@users.noreply.github.com" }
+]
+maintainers = [
     { name = "shenald-dev", email = "shenald@users.noreply.github.com" }
 ]
 license = { text = "MIT" }
@@ -37,6 +40,13 @@ dev = [
 
 [project.scripts]
 purge = "purge.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/shenald-dev/purge"
+Documentation = "https://github.com/shenald-dev/purge#readme"
+Repository = "https://github.com/shenald-dev/purge"
+Issues = "https://github.com/shenald-dev/purge/issues"
+Changelog = "https://github.com/shenald-dev/purge/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["setuptools>=61.0"]
