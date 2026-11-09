@@ -1,6 +1,9 @@
 """Tests for disk capacity and bloat radar analysis."""
 
+import sys
 from pathlib import Path
+
+import pytest
 
 from purge.core.disk import PartitionInfo, get_partition_for_path
 
@@ -78,6 +81,7 @@ def test_get_partition_for_existing_file():
     assert part.bloat_bytes == 512
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='UNC share paths are Windows-specific')
 def test_get_partition_for_unc_path_mocked(monkeypatch):
     """Verify UNC share partition matching without relative/absolute path errors."""
     import psutil
@@ -103,6 +107,7 @@ def test_get_partition_for_unc_path_mocked(monkeypatch):
     assert part.mountpoint == r"\\server\share"
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='UNC network resolution error is Windows-specific')
 def test_get_partition_for_unresolvable_unc_path(monkeypatch):
     """Verify graceful handling when path.resolve() fails with WinError 53 on offline UNC."""
     def mock_resolve_fail(self):
