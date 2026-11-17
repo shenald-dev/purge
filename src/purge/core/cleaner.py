@@ -67,13 +67,20 @@ class PurgeCleaner:
             if self.to_trash:
                 try:
                     import send2trash
-
-                    send2trash.send2trash(str(path))
-                    return True, None, None
                 except ImportError:
                     return (
                         False,
-                        "The 'send2trash' package is required for trash functionality. Install it via 'pip install send2trash'.",
+                        "The 'send2trash' package is required for trash functionality. "
+                        "Install it via 'pip install purge-reaper[trash]' or 'pip install send2trash'.",
+                        None,
+                    )
+                try:
+                    send2trash.send2trash(str(path))
+                    return True, None, None
+                except Exception as trash_exc:
+                    return (
+                        False,
+                        f"Failed to move '{path}' to trash: {trash_exc}",
                         None,
                     )
 

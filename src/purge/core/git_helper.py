@@ -1,5 +1,6 @@
 """Git repository intelligence for tracking project dormancy and uncommitted changes."""
 
+import os
 import subprocess
 import time
 from dataclasses import dataclass
@@ -40,7 +41,40 @@ def _get_git_root(path: Path) -> Optional[Path]:
 @lru_cache(maxsize=1024)
 def _get_git_info(repo_root: Path) -> GitProjectInfo:
     try:
-        # Check for uncommitted changes
+        env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
+
+        # One combined call: branch name + last commit timestamp.
+        # '%ct' epoch seconds, '%D' ref names; separated by a unit separator
+        # so they can be split safely even when branch names contain spaces.
+        res_combined = subprocess.run(
+            ["git", "log", "-1", "--format=%ct\x1f%D"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2.0,
+            env=env,
+        )
+        current_branch = None
+        last_commit_time = None
+        days_since = 0.0
+
+        if res_combined.returncode == 0 and res_combined.stdout.strip():
+            epoch_str, _, ref_info = res_combined.stdout.strip().partition("\x1f")
+            try:
+                ts = int(epoch_str)
+                last_commit_time = datetime.fromtimestamp(ts, tz=timezone.utc)
+                days_since = (time.time() - ts) / (24 * 3600)
+            except ValueError:
+                pass
+            # ref_info like 'HEAD -> main, origin/main': take the first branch-ish token
+            for token in ref_info.replace("->", " ").split(","):
+                token = token.strip()
+                if token and token not in ("HEAD", "grafted"):
+                    current_branch = token
+                    break
+
+        # Check for uncommitted changes (separate call: needs index inspection)
         res_status = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=str(repo_root),
@@ -48,38 +82,9 @@ def _get_git_info(repo_root: Path) -> GitProjectInfo:
             text=True,
             check=False,
             timeout=2.0,
+            env=env,
         )
         has_uncommitted = bool(res_status.stdout.strip())
-
-        # Get current branch
-        res_branch = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=2.0,
-        )
-        current_branch = (
-            res_branch.stdout.strip() if res_branch.returncode == 0 else None
-        )
-
-        # Get last commit timestamp
-        res_log = subprocess.run(
-            ["git", "log", "-1", "--format=%ct"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=2.0,
-        )
-        last_commit_time = None
-        days_since = 0.0
-
-        if res_log.returncode == 0 and res_log.stdout.strip():
-            ts = int(res_log.stdout.strip())
-            last_commit_time = datetime.fromtimestamp(ts, tz=timezone.utc)
-            days_since = (time.time() - ts) / (24 * 3600)
 
         return GitProjectInfo(
             is_git=True,

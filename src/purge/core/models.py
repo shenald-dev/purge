@@ -18,10 +18,17 @@ def format_bytes(num_bytes: Union[int, float]) -> str:
 
 
 def parse_size_to_bytes(size_str: str) -> int:
-    """Parse size strings like '100MB', '2.5GB', '500KB' into integer bytes."""
+    """Parse size strings like '100MB', '2.5GB', '500KB' into integer bytes.
+
+    Negative, malformed, or nonsensical inputs resolve to 0 so callers'
+    filters never receive negative thresholds.
+    """
     s = size_str.strip().upper()
     multiplier = 1
-    if s.endswith("TB"):
+    if s.endswith("PB"):
+        multiplier = 1024**5
+        val = s[:-2]
+    elif s.endswith("TB"):
         multiplier = 1024**4
         val = s[:-2]
     elif s.endswith("GB"):
@@ -40,9 +47,12 @@ def parse_size_to_bytes(size_str: str) -> int:
         val = s
 
     try:
-        return int(float(val.strip()) * multiplier)
+        parsed = float(val.strip())
     except ValueError:
         return 0
+    if parsed <= 0:
+        return 0
+    return int(parsed * multiplier)
 
 
 @dataclass

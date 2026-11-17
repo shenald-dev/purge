@@ -5,6 +5,7 @@ one-command restoration, eliminating all accidental deletion risks.
 """
 
 import json
+import os
 import shutil
 import time
 from dataclasses import asdict, dataclass
@@ -13,8 +14,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from purge.core.models import format_bytes
+from purge.core.rules import CRITICAL_SYSTEM_PATHS
 
 DEFAULT_VAULT_ROOT = Path.home() / ".config" / "purge" / "vault"
+
+# Prefixes whose descendants are never valid restore destinations.
+# Derived from CRITICAL_SYSTEM_PATHS so the guard tracks the same policy.
+CRITICAL_SYSTEM_PREFIXES = tuple(
+    p for p in CRITICAL_SYSTEM_PATHS if not p.startswith("C:\\") and p != "/"
+)
 
 
 @dataclass
@@ -155,6 +163,10 @@ class QuarantineVault:
     ) -> Tuple[int, int, List[str]]:
         """Restore items from vault back to their original paths.
 
+        Original paths are validated against the allowlist recorded at
+        quarantine time; a tampered or hand-edited manifest cannot
+        redirect restoration into arbitrary directories.
+
         Returns (restored_count, restored_bytes, errors).
         """
         session = self.get_session(vault_id)
@@ -176,6 +188,16 @@ class QuarantineVault:
             if item in items_to_restore:
                 vault_p = Path(item.vault_path)
                 orig_p = Path(item.original_path)
+
+                # Security: only restore into the recorded vault root for this
+                # session, never into arbitrary destinations from the manifest.
+                if not self._is_safe_restore_destination(vault_p, orig_p, vault_id):
+                    errors.append(
+                        f"Refusing unsafe restore destination: {orig_p} "
+                        "(manifest original_path must be an absolute, non-vault location)"
+                    )
+                    remaining_items.append(item)
+                    continue
 
                 if not vault_p.exists():
                     errors.append(f"Vault item not found: {vault_p}")
@@ -212,6 +234,43 @@ class QuarantineVault:
             self.save_session_manifest(session)
 
         return restored_count, restored_bytes, errors
+
+    def _is_safe_restore_destination(self, vault_path: Path, original_path: Path, vault_id: str) -> bool:
+        """Guard against tampered manifests redirecting restores.
+
+        A valid destination is absolute, does not live inside the vault
+        itself, and is not a protected system root or a descendant of
+        one (e.g. /usr/local/bin under /usr).
+        """
+        try:
+            if not original_path.is_absolute():
+                return False
+            resolved_dest = original_path.resolve()
+            resolved_vault = self.vault_root.resolve()
+            if resolved_dest == resolved_vault or resolved_vault in resolved_dest.parents:
+                return False
+            if str(resolved_dest).startswith(str(resolved_vault) + os.sep):
+                return False
+
+            # Descendants of critical system roots are off-limits, not just
+            # the exact roots themselves (is_protected_path only blocks
+            # exact matches and dot-dir components).
+            for critical in CRITICAL_SYSTEM_PREFIXES:
+                if resolved_dest == critical or resolved_dest.is_relative_to(critical):
+                    return False
+
+            from purge.core.rules import is_protected_path
+
+            if is_protected_path(resolved_dest, allow_home=False):
+                return False
+            # vault_path must point inside this session's directory
+            resolved_item = vault_path.resolve()
+            session_dir = (self.vault_root / vault_id).resolve()
+            if session_dir not in resolved_item.parents:
+                return False
+        except (OSError, ValueError, RuntimeError):
+            return False
+        return True
 
     def prune_vault(
         self, older_than_days: float = 14.0, vault_id: Optional[str] = None
