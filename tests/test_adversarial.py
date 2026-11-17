@@ -49,7 +49,10 @@ class TestScanEdgeCases:
 
     def test_scan_symlink_loops_terminate(self, tmp_path):
         link = tmp_path / "loop"
-        link.symlink_to(tmp_path, target_is_directory=True)
+        try:
+            link.symlink_to(tmp_path, target_is_directory=True)
+        except OSError:
+            pytest.skip("Symlink creation not permitted without elevated privileges on Windows")
         report = DiskScanner(git_aware=False).scan(tmp_path, max_depth=5)
         assert report.duration_seconds < 10.0  # terminates, no hang
 

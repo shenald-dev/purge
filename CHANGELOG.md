@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **[Cross-Platform] Windows system path & symlink resilience**: Normalized POSIX system path matching in `is_protected_path` to prevent Windows drive mismatches, and guarded symlink loop traversal tests against WinError 1314 privilege errors.
+- **[CLI & Tests] Validation & optional extra isolation**: Transport flag in `purge mcp` is now validated before loading optional MCP dependencies; mocked `send2trash` in security tests to run deterministically on lean environments.
+
 ## [3.0.0] - 2026-11-17 — Agent-Native Reclamation
 
 ### Added

@@ -114,7 +114,14 @@ def is_protected_path(path: Path, allow_home: bool = False) -> bool:
     """Check if path is a protected root, user profile root, or system path."""
     try:
         # Check raw string before resolving
-        if str(path) in CRITICAL_SYSTEM_PATHS or str(path).rstrip("\\/") in CRITICAL_SYSTEM_PATHS:
+        raw_str = str(path)
+        raw_posix = path.as_posix()
+        if (
+            raw_str in CRITICAL_SYSTEM_PATHS
+            or raw_str.rstrip("\\/") in CRITICAL_SYSTEM_PATHS
+            or raw_posix in CRITICAL_SYSTEM_PATHS
+            or raw_posix.rstrip("/") in CRITICAL_SYSTEM_PATHS
+        ):
             return True
 
         resolved = path.resolve()

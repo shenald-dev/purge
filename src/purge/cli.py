@@ -599,6 +599,10 @@ def mcp_command(
     port: int = typer.Option(8000, "--port", help="Bind port for streamable-http transport."),
 ):
     """Run the purge MCP server for AI-agent integration (requires purge-reaper[mcp])."""
+    if transport not in ("stdio", "streamable-http"):
+        console.print("[bold red]❌ Unsupported transport. Use 'stdio' or 'streamable-http'.[/]")
+        raise typer.Exit(1)
+
     try:
         from purge.mcp_server import serve
     except ImportError as exc:
@@ -607,9 +611,6 @@ def mcp_command(
         raise typer.Exit(1)
 
     try:
-        if transport not in ("stdio", "streamable-http"):
-            console.print("[bold red]❌ Unsupported transport. Use 'stdio' or 'streamable-http'.[/]")
-            raise typer.Exit(1)
         serve(transport=transport, host=host, port=port)
     except typer.Exit:
         raise

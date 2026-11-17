@@ -126,6 +126,9 @@ class TestTrashErrorClassification:
         assert "purge-reaper[trash]" in err or "send2trash" in err
 
     def test_runtime_trash_failure_reports_real_cause(self, tmp_path, monkeypatch):
+        import sys
+        import types
+
         from purge.core.cleaner import PurgeCleaner
         from purge.core.models import Artifact
 
@@ -134,11 +137,9 @@ class TestTrashErrorClassification:
         (f / "x.txt").write_text("x", encoding="utf-8")
         art = Artifact(path=f, category="Temp", size_bytes=10)
 
-        import send2trash
-        monkeypatch.setattr(
-            send2trash, "send2trash",
-            lambda p: (_ for _ in ()).throw(RuntimeError("trash daemon unavailable")),
-        )
+        mock_s2t = types.ModuleType("send2trash")
+        mock_s2t.send2trash = lambda p: (_ for _ in ()).throw(RuntimeError("trash daemon unavailable"))
+        monkeypatch.setitem(sys.modules, "send2trash", mock_s2t)
         cleaner = PurgeCleaner(to_trash=True, record_history=False)
         ok, err, _ = cleaner.delete_artifact(art)
         assert ok is False
