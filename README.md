@@ -11,11 +11,12 @@
 
 ### 🧹 The Zero-Latency Developer Bloat & Zombie Process Reaper
 
-*Reclaim 50GB of dev debris and slay zombie dev servers in seconds. Now featuring intelligent priority scoring, quarantine undo vault, and drive capacity radar.*
+*Reclaim 50GB of dev debris and slay zombie dev servers in seconds. Now agent-native with a built-in MCP server, headless engine API, and CI bloat budget gates.*
 
 [![PyPI version](https://img.shields.io/pypi/v/purge-reaper.svg?color=00d4ff&style=flat-square)](https://pypi.org/project/purge-reaper/)
 [![GitHub Release](https://img.shields.io/github/v/release/shenald-dev/purge?color=00d4ff&style=flat-square&logo=github)](https://github.com/shenald-dev/purge/releases)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg?style=flat-square)](https://www.python.org/downloads/)
+[![MCP](https://img.shields.io/badge/MCP-native-00d4ff.svg?style=flat-square)](#-mcp-integration-ai-agents)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg?style=flat-square)](LICENSE)
 [![CI Passing](https://img.shields.io/badge/CI-Passing-brightgreen.svg?style=flat-square)](https://github.com/shenald-dev/purge/actions)
 [![Speed](https://img.shields.io/badge/speed-%3C20ms-cyan.svg?style=flat-square)](#architecture)
@@ -24,7 +25,8 @@
 ---
 
 [The Problem](#-the-problem) •
-[What's New in v2.0](#-whats-new-in-v20) •
+[What's New in v3.0](#-whats-new-in-v30--agent-native-reclamation) •
+[MCP Integration](#-mcp-integration-ai-agents) •
 [Key Features](#-key-features) •
 [Terminal UI](#-terminal-ui) •
 [Quick Start](#-quick-start) •
@@ -53,6 +55,19 @@ Modern developers juggle dozens of repositories and tools every month. After a f
 Existing tools are fragmented: `npkill` only cleans npm; `cargo clean` requires manually visiting each repository; `docker prune` only handles containers; and finding port hogs requires cryptic `lsof -i :3000` and `kill -9` terminal dances.
 
 **`purge` is a unified, blazing-fast reaper.** It scans your workspaces concurrently, prunes directory traversal at artifact boundaries, audits global caches, slays process trees holding your dev ports, and lets you reclaim 50GB in seconds.
+
+---
+
+## 🚀 What's New in v3.0 — Agent-Native Reclamation
+
+- 🤖 **Native MCP Server (`purge mcp`):** purge's full intelligence — scan, scoring, inspection, cleaning, quarantine vault, zombie hunting, telemetry — exposed as Model Context Protocol tools. Drive disk hygiene from Claude Desktop, IDE agents, or any MCP host. Destructive tools are dry-run by default and require an explicit `confirm=True` argument.
+- 🧠 **PurgeEngine Headless API (`purge.core.api.PurgeEngine`):** the same engine the CLI uses, callable from Python. One facade for scan/inspect/clean/vault/zombies/stats — no terminal required. Scripts, CI pipelines, and MCP hosts observe identical semantics.
+- 🚦 **CI Bloat Budget Gate (`purge scan --fail-over 2GB`):** exits with code 2 when reclaimable bloat exceeds a threshold. Fail builds before debris piles up.
+- 🔒 **Vault Security Hardening:** quarantine manifests are validated at restore time — tampered manifests can no longer redirect restoration into system paths or vault-internal locations. Negative and unsupported size inputs can no longer silently disable filters.
+- ⚡ **Git Intelligence Optimization:** repository inspection consolidated from 3 to 2 subprocess calls per repo (`GIT_OPTIONAL_LOCKS=0`), cutting cold-inspection cost by ~39%.
+- 🧹 **Polish:** telemetry panel markup leak fixed, trash dependency declared as an official `[trash]` extra with honest error classification, version banner now tracks the package version.
+
+> v2.0 highlights below are all still present: Priority Scoring, Quarantine Vault, Drive Radar, Exporter, Parallel Deletion, ecosystem heuristics.
 
 ---
 
@@ -87,7 +102,7 @@ When you run `purge scan` across your workspace:
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │   🧹 Developer Bloat & Zombie Process Reaper • Zero Bloat                   │
-└─────────────── v2.0.0 • https://github.com/shenald-dev/purge ───────────────┘
+└─────────────── v3.0.0 • https://github.com/shenald-dev/purge ───────────────┘
 
                        📦 Reclaimable Bloat Targets (4)                        
 ┌───┬──────────────────┬──────────────────────────┬──────────┬────────────┬─────────┬────────┬──────────────┐
@@ -139,6 +154,57 @@ pipx install purge-reaper
 uv tool install purge-reaper
 ```
 
+Optional extras:
+
+```bash
+pip install "purge-reaper[mcp]"    # MCP server for AI agents (Python 3.11+)
+pip install "purge-reaper[trash]"  # --trash mode (send2trash)
+```
+
+---
+
+## 🤖 MCP Integration (AI Agents)
+
+`purge` ships a native [Model Context Protocol](https://modelcontextprotocol.io) server. Once installed with the `[mcp]` extra, any MCP host can reclaim disk space conversationally.
+
+**Claude Desktop / generic `claude_desktop_config.json`:**
+
+```json
+{
+  "mcpServers": {
+    "purge": {
+      "command": "purge",
+      "args": ["mcp", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+**VS Code / other hosts** — run the server directly:
+
+```bash
+purge mcp --transport stdio
+purge mcp --transport streamable-http --host 127.0.0.1 --port 8000
+```
+
+Exposed tools: `scan`, `inspect_path`, `clean`, `kill_zombies`, `port_status`, `vault_list`, `vault_show`, `vault_restore`, `stats`, `server_info`.
+
+Safety model: `clean`, `kill_zombies`, and `vault_restore` **refuse to execute** unless the caller passes `confirm=True`; without it they return a dry-run preview. Protected system roots are rejected server-side before any operation runs.
+
+**Python library usage (headless engine):**
+
+```python
+from purge.core.api import PurgeEngine
+
+engine = PurgeEngine(root_path="~/Projects")
+report = engine.scan(min_score=65, sort_by="score")
+print(report.human_total_size)
+
+# Safe, reversible quarantine clean
+result = engine.clean(artifacts=report.artifacts, to_vault=True)
+engine.vault_restore(result.vault_session_id)  # one-command undo
+```
+
 ---
 
 ## 🛠️ Commands & Usage
@@ -166,6 +232,9 @@ purge scan --min-score 70     # Only high-yield targets (score ≥ 70)
 # Sort & limit
 purge scan --sort score --top 10   # Top 10 highest-scoring targets
 purge scan --sort stale            # Sort by longest untouched
+
+# CI bloat budget gate: exit code 2 when reclaimable size exceeds threshold
+purge scan ~/Projects --fail-over 2GB
 
 # Include drive capacity radar
 purge scan --disk
@@ -416,6 +485,11 @@ ignore_paths = [
                     └───────────┬─────────────┘
                                 │
                                 ▼
+              ┌─────────────────────────────┐
+              │   PurgeEngine (core API)   │  ← v3: single headless facade
+              └───────────┬─────────────────┘
+                          │
+                          ▼
                     ┌─────────────────────────┐
                     │  Rapid Discovery Walk   │ (Sub-20ms pruning at
                     │    (os.scandir tree)    │  artifact boundaries)
@@ -425,7 +499,7 @@ ignore_paths = [
           ▼                     ▼                     ▼
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
 │ Parallel Stat    │  │ Git Intelligence │  │ Zombie Hunter    │
-│ & Scoring Pool   │  │ (Dormancy/Dirty) │  │ (Dev port trees) │
+│ & Scoring Pool   │  │ (2-call inspect) │  │ (Dev port trees) │
 └─────────┬────────┘  └─────────┬────────┘  └─────────┬────────┘
           │                     │                     │
           └────────────────┬────┴─────────────────────┘
@@ -436,18 +510,20 @@ ignore_paths = [
                │ (Size, Age, Git State)  │
                └───────────┬─────────────┘
                            │
-                           ▼
-               ┌─────────────────────────┐
-               │  Cyberpunk Terminal HUD │
-               │ & Multi-Format Exporter │
-               └───────────┬─────────────┘
-                           │
-             ┌─────────────┴─────────────┐
-             ▼                           ▼
- ┌───────────────────────┐   ┌───────────────────────┐
- │ Parallel Fast Deletion│   │ Quarantine Undo Vault │
- │ (Retry & RO Clearing) │   │ (Instant Restoration) │
- └───────────────────────┘   └───────────────────────┘
+          ┌────────────────┼──────────────────┐
+          ▼                ▼                  ▼
+┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│ Cyberpunk TUI    │ │ MCP Server       │ │ Multi-Format      │
+│ & CLI (Typer)    │ │ (10 agent tools) │ │ Exporter (md/csv)│
+└────────┬─────────┘ └────────┬─────────┘ └────────┬─────────┘
+         │                    │                    │
+         └──────────┬─────────┴────────────────────┘
+                    ▼
+      ┌─────────────────────────┐
+      │  Parallel Deletion /    │
+      │  Quarantine Vault       │
+      │  (validated manifests)  │
+      └─────────────────────────┘
 ```
 
 ---

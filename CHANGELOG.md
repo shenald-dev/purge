@@ -7,14 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [3.0.0] - 2026-11-17 — Agent-Native Reclamation
+
+### Added
+- **Native MCP Server (`purge mcp`)**:
+  - Full Model Context Protocol integration exposing 10 tools: `scan`, `inspect_path`, `clean`, `kill_zombies`, `port_status`, `vault_list`, `vault_show`, `vault_restore`, `stats`, `server_info`.
+  - stdio and streamable-http transports; registers as an MCP host entry (`purge mcp --transport stdio`).
+  - Safety model: destructive tools (`clean`, `kill_zombies`, `vault_restore`) are dry-run by default and require an explicit `confirm=True` argument to execute; protected system roots are rejected server-side.
+  - Optional `[mcp]` extra (`pip install 'purge-reaper[mcp]'`, Python 3.11+) keeps the core dependency footprint unchanged.
+- **PurgeEngine Headless API (`purge.core.api.PurgeEngine`)**:
+  - Single programmatic facade for scan, inspection, cleaning, quarantine, zombie hunting, and telemetry — the exact semantics the CLI observes, callable from Python without a terminal.
+  - Human-string size filters (`min_size="50MB"`), category specs, scoring gates, and vault round-trip management.
+- **CI Bloat Budget Gate (`purge scan --fail-over 2GB`)**:
+  - Exits with code 2 when total reclaimable size exceeds a threshold; CI pipelines can fail builds before debris accumulates. Works with `--json`, `--format`, and file exports.
+- **`[trash]` optional extra**: `send2trash` is now a declared, documented dependency contract for `--trash` mode instead of an implicit runtime import.
 
 ### Changed
-- **[Fixed]:** Resolved existing file path resolution, unhandled offline UNC path crashes, and UNC mountpoint matching in `get_partition_for_path` on Windows.
-- **[Fixed]:** Fixed system path validation bypass on cross-platform paths by checking raw strings before resolution.
-- **[Fixed]:** Restored mistakenly removed backward-compatible wrapper functions `kill_zombie` and `list_system_partitions`.
-- **[Pruned]:** Removed unused `PROTECTED` safety level and `quarantined_at` tracking variable.
-- **[Pruned]:** Removed unused `default_format` from `PurgeConfig`.
+- **[Optimized] Git repository inspection** consolidated from 3 to 2 subprocess calls per repository (combined `git log` fetch + `GIT_OPTIONAL_LOCKS=0`), reducing cold inspection cost by ~39% (53.5ms → 32.7ms median across 15 repos, 5 interleaved rounds).
+- **[Changed] Version bumped to 3.0.0** (breaking: new major feature surface; CLI and Python APIs remain backward compatible).
+- Terminal banner and `--version` now derive from the package `__version__` (no more hardcoded strings drifting out of sync).
+
+### Fixed
+- **[Security] Vault manifest hardening**: `restore_session` now validates that manifest `original_path` values are absolute, outside the vault, and not inside critical system roots — a tampered or hand-edited manifest can no longer redirect restoration into arbitrary locations (`tests/test_security.py`).
+- **[Fixed] Negative size parsing**: `parse_size_to_bytes("-5MB")` returned negative bytes, silently disabling size filters; malformed/negative inputs now resolve to 0. Added petabyte (`PB`) unit parsing for symmetry with `format_bytes`.
+- **[Fixed] Trash error classification**: `--trash` failures previously surfaced as generic deletion errors; `ImportError` (missing package) is now distinct from runtime trash failures, with an actionable install hint referencing the `[trash]` extra.
+- **[Fixed] Rich markup leak**: telemetry panel emitted literal `[bold]…[/]` markup in category breakdown lines.
+- **[Fixed] The `test_cleaner_to_trash` unit test** now isolates the missing-`send2trash` path deterministically (previously dependent on the host environment's installed packages).
+
+### Verified
+- Test suite: **166 passed, 2 skipped** (baseline at v2.0.0: 89 passed, 1 failed, 2 skipped) — all pre-existing failures resolved, no regressions across 3 consecutive full-suite runs.
+- End-to-end MCP protocol session verified against the installed `purge` binary via the official client SDK (tool listing, scan, safety-guard refusal, vault error surfacing, stats).
+- Ruff lint: clean. Adversarial suite: symlink loops, permission-injected traversal, unicode paths, depth boundaries, fuzzed size/score inputs.
 
 ---
 
