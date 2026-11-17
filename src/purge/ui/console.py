@@ -8,6 +8,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from purge import __version__
 from purge.core.disk import PartitionInfo
 from purge.core.models import Artifact, CleanResult, PurgeReport, ZombieProcess, format_bytes
 from purge.core.vault import VaultSession
@@ -39,7 +40,7 @@ def print_banner():
         Panel(
             BANNER_ART.strip(),
             border_style="bright_magenta",
-            subtitle="[dim cyan]v2.0.0 • https://github.com/shenald-dev/purge[/]",
+            subtitle=f"[dim cyan]v{__version__} • https://github.com/shenald-dev/purge[/]",
         )
     )
     console.print()
@@ -257,7 +258,7 @@ def render_scan_summary(report: PurgeReport):
 
     if report.category_breakdown:
         breakdown_parts = [
-            f"{cat}: [bold]{format_bytes(bytes_count)}[/]"
+            f"{cat}: {format_bytes(bytes_count)}"
             for cat, bytes_count in sorted(
                 report.category_breakdown.items(), key=lambda x: x[1], reverse=True
             )[:5]

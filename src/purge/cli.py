@@ -89,6 +89,11 @@ def scan(
     format_type: str = typer.Option("terminal", "--format", help="Output format: terminal, json, markdown, csv."),
     json_output: bool = typer.Option(False, "--json", help="Output machine-readable JSON."),
     output_file: Optional[Path] = typer.Option(None, "--output", "-o", help="Save report to destination file."),
+    fail_over: Optional[str] = typer.Option(
+        None,
+        "--fail-over",
+        help="Exit with code 2 when total reclaimable size exceeds threshold (e.g. 2GB). CI budget gate.",
+    ),
 ):
     """Scan directory, global caches, and running processes for developer bloat and port hogs."""
     config = load_config(path)
@@ -133,28 +138,37 @@ def scan(
     fmt = "json" if json_output else format_type.lower()
     if fmt == "json":
         print(json.dumps(report.to_dict(), indent=2))
-        return
     elif fmt in ("md", "markdown"):
         print(export_to_markdown(report))
-        return
     elif fmt == "csv":
         print(export_to_csv(report))
-        return
 
     # Terminal UI output
-    print_banner()
+    if fmt == "terminal":
+        print_banner()
 
-    if disk:
-        part = get_partition_for_path(path, bloat_bytes=report.total_bytes)
-        if part:
-            render_disk_status(part)
+        if disk:
+            part = get_partition_for_path(path, bloat_bytes=report.total_bytes)
+            if part:
+                render_disk_status(part)
 
-    render_artifacts_table(report)
-    if report.global_caches:
-        render_global_caches_table(report.global_caches)
-    if report.zombies:
-        render_zombies_table(report.zombies)
-    render_scan_summary(report)
+        render_artifacts_table(report)
+        if report.global_caches:
+            render_global_caches_table(report.global_caches)
+        if report.zombies:
+            render_zombies_table(report.zombies)
+        render_scan_summary(report)
+
+    # CI budget gate: exit non-zero when bloat exceeds the threshold
+    if fail_over:
+        threshold_bytes = parse_size_to_bytes(fail_over)
+        if threshold_bytes > 0 and report.total_bytes > threshold_bytes:
+            if fmt == "terminal":
+                console.print(
+                    f"[bold red]⛔ Bloat gate exceeded:[/] total reclaimable {report.human_total_size} "
+                    f"surpasses threshold {fail_over}. Failing for CI (exit code 2)."
+                )
+            raise typer.Exit(2)
 
 
 @app.command(name="clean")
@@ -574,6 +588,35 @@ def vault_prune(
     )
 
 
+@app.command(name="mcp")
+def mcp_command(
+    transport: str = typer.Option(
+        "stdio", "--transport", "-t", help="Transport: stdio (default) or streamable-http."
+    ),
+    host: Optional[str] = typer.Option(
+        "127.0.0.1", "--host", help="Bind host for streamable-http transport."
+    ),
+    port: int = typer.Option(8000, "--port", help="Bind port for streamable-http transport."),
+):
+    """Run the purge MCP server for AI-agent integration (requires purge-reaper[mcp])."""
+    try:
+        from purge.mcp_server import serve
+    except ImportError as exc:
+        # Escape brackets so Rich does not swallow "[mcp]" as a style tag.
+        console.print(f"[bold red]❌ {exc}[/]".replace("[mcp]", "\\[mcp]"))
+        raise typer.Exit(1)
+
+    try:
+        if transport not in ("stdio", "streamable-http"):
+            console.print("[bold red]❌ Unsupported transport. Use 'stdio' or 'streamable-http'.[/]")
+            raise typer.Exit(1)
+        serve(transport=transport, host=host, port=port)
+    except typer.Exit:
+        raise
+    except KeyboardInterrupt:
+        raise typer.Exit(0)
+
+
 @app.command(name="init")
 def init_command(
     path: Path = typer.Argument(Path("."), help="Target directory to create purge.toml."),
@@ -584,7 +627,7 @@ def init_command(
         console.print(f"[bold yellow]Configuration file {target_file} already exists.[/]")
         raise typer.Exit(0)
 
-    starter_config = """# PURGE Configuration File (v2.0)
+    starter_config = """# PURGE Configuration File (v3.0)
 # Documentation: https://github.com/shenald-dev/purge
 
 [purge]

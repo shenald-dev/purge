@@ -1,7 +1,7 @@
 [project]
 name = "purge-reaper"
-version = "2.0.0"
-description = "🧹 Zero-latency developer bloat and zombie process reaper. Reclaim 50GB in 3 seconds."
+version = "3.0.0"
+description = "🧹 Zero-latency developer bloat and zombie process reaper. Reclaim 50GB in 3 seconds. Agent-native via MCP."
 readme = "README.md"
 authors = [
     { name = "Shenal Diluksha", email = "shenald@users.noreply.github.com" }
@@ -11,7 +11,7 @@ maintainers = [
 ]
 license = { text = "MIT" }
 requires-python = ">=3.10"
-keywords = ["purge", "cleaner", "node_modules", "zombie-processes", "disk-space", "developer-tools", "tui", "cli"]
+keywords = ["purge", "cleaner", "node_modules", "zombie-processes", "disk-space", "developer-tools", "tui", "cli", "mcp", "model-context-protocol", "ai-agents"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -32,6 +32,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+mcp = [
+    "mcp>=2.0.0"
+]
+trash = [
+    "send2trash>=1.8.0"
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
