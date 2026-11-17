@@ -91,10 +91,11 @@ def test_cleaner_to_trash(tmp_path):
 
     cleaner = PurgeCleaner(to_trash=True, record_history=False)
 
-    # 1. Missing module returns informative error
-    ok, err, item = cleaner.delete_artifact(art)
-    assert ok is False
-    assert "send2trash" in err
+    # 1. Missing module returns informative error (send2trash absent)
+    with patch.dict("sys.modules", {"send2trash": None}):
+        ok, err, item = cleaner.delete_artifact(art)
+        assert ok is False
+        assert "send2trash" in err
 
     # 2. Mocking send2trash in sys.modules
     mock_s2t = MagicMock()
